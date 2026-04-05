@@ -1,0 +1,112 @@
+/*
+  WHY these three directives: They are Tailwind's injection points.
+  @tailwind base    → Tailwind's CSS reset (Preflight) + base HTML element styles
+  @tailwind components → Any @layer components {} blocks we define
+  @tailwind utilities  → All the utility classes (bg-*, text-*, flex, etc.)
+
+  Without these, Tailwind generates nothing. They tell PostCSS WHERE to insert
+  the generated CSS. The order matters: base first, then components, then utilities
+  (utilities must be last so they can override component styles when needed).
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* WHY @layer base: We extend Tailwind's base layer with our own resets.
+   Using @layer ensures these styles have the same specificity as Tailwind's
+   base styles and can be overridden by utilities. */
+@layer base {
+  /* Smooth color transitions when toggling dark mode */
+  * {
+    @apply transition-colors duration-150;
+  }
+
+  /* Remove transition from images — they flash weirdly during dark mode toggle */
+  img {
+    transition: none;
+  }
+
+  /* Custom scrollbar styling — subtle, matches dark/light mode */
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+}
+
+/* WHY @layer components: Reusable multi-utility patterns go here.
+   We define them as components so they can be overridden by utilities.
+   This is where Tailwind's @apply shines — it extracts repeated class combos. */
+@layer components {
+  /* Primary button — used throughout the app */
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white font-medium
+           px-4 py-2 rounded-lg transition-all duration-200
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+  }
+
+  /* Ghost/secondary button */
+  .btn-ghost {
+    @apply bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800
+           text-gray-700 dark:text-gray-300 font-medium
+           px-4 py-2 rounded-lg transition-all duration-200
+           active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-400;
+  }
+
+  /* Card container — consistent shadow and border across light/dark */
+  .card {
+    @apply bg-white dark:bg-gray-800
+           border border-gray-100 dark:border-gray-700
+           rounded-2xl shadow-sm hover:shadow-md
+           transition-shadow duration-200;
+  }
+
+  /* Input field — used in search and forms */
+  .input-field {
+    @apply w-full bg-white dark:bg-gray-800
+           border border-gray-200 dark:border-gray-700
+           rounded-xl px-4 py-2.5 text-sm
+           text-gray-900 dark:text-gray-100
+           placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+           transition-all duration-200;
+  }
+
+  /* Skeleton shimmer — applied to skeleton placeholder elements */
+  .skeleton {
+    @apply rounded-lg;
+    background: linear-gradient(
+      90deg,
+      theme('colors.gray.200') 25%,
+      theme('colors.gray.100') 50%,
+      theme('colors.gray.200') 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  /* Dark mode skeleton */
+  .dark .skeleton {
+    background: linear-gradient(
+      90deg,
+      theme('colors.gray.700') 25%,
+      theme('colors.gray.600') 50%,
+      theme('colors.gray.700') 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  /* Badge — for category labels and status indicators */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+}

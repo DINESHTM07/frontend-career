@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛍️</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ShopExplorer — Browse, filter, and buy products powered by FakeStore API" />
+    <title>ShopExplorer</title>
+
+    <!--
+      WHY this inline script: We initialize dark mode BEFORE the page paints.
+      If we did this in React (useEffect), there would be a flash: the page
+      renders in light mode for ~16ms, then switches to dark. This is the
+      "flash of unstyled content" (FOUC) problem. By running synchronous JS
+      before any HTML renders, we set the 'dark' class instantly.
+    -->
+    <script>
+      (function () {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (stored === 'dark' || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!--
+      WHY type="module": Vite serves ES modules directly in development.
+      The browser handles imports natively, meaning Vite only transforms
+      the specific file requested — making dev startup near-instant.
+    -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
