@@ -1,0 +1,19 @@
+import type { CategoryDataPoint } from '../types'
+
+/*
+  categoryData.ts — Sales vs returns by product category.
+  Used by CategoryBarChart (grouped bar chart).
+
+  WHY show returns alongside sales:
+  A high return rate signals product quality issues even when gross sales look good.
+  Showing both columns in one chart surfaces this signal immediately.
+*/
+
+export const categoryData: CategoryDataPoint[] = [
+  { category: 'Electronics',  sales: 125000, returns: 8200 },
+  { category: 'Clothing',     sales: 67000,  returns: 12400 },
+  { category: 'Home & Garden',sales: 43500,  returns: 3100 },
+  { category: 'Sports',       sales: 38200,  returns: 4200 },
+  { category: 'Books',        sales: 22800,  returns: 1500 },
+  { category: 'Beauty',       sales: 31600,  returns: 2800 },
+]

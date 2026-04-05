@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="DataPulse — Analytics Dashboard" />
+    <title>DataPulse</title>
+
+    <!--
+      WHY this inline script (not a useEffect):
+      If dark mode init were in React, the page would render in light mode for
+      ~16ms before the effect runs — a visible flash. Running this synchronously
+      before any HTML renders prevents that "flash of unstyled content" (FOUC).
+    -->
+    <script>
+      (function () {
+        const stored = localStorage.getItem('dashboard-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (stored === 'dark' || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
