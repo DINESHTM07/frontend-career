@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exercise 34: GitHub Profile Clone — Tailwind UI Clone</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gh: {
+              bg: '#0d1117',
+              surface: '#161b22',
+              border: '#30363d',
+              text: '#e6edf3',
+              muted: '#8b949e',
+              accent: '#58a6ff',
+              green: '#3fb950',
+              orange: '#e3b341',
+            }
+          }
+        }
+      }
+    }
+    // GitHub is dark by default
+    document.documentElement.classList.add('dark');
+  </script>
+  <style>
+    /* GitHub's contribution graph green squares */
+    .contrib-day { width: 10px; height: 10px; border-radius: 2px; }
+    .contrib-0 { background: #161b22; border: 1px solid #21262d; }
+    .contrib-1 { background: #0e4429; }
+    .contrib-2 { background: #006d32; }
+    .contrib-3 { background: #26a641; }
+    .contrib-4 { background: #39d353; }
+  </style>
+</head>
+
+<!--
+  ============================================
+  INTRO: Design to Code — GitHub Profile Clone
+  ============================================
+  PATTERN: Design to Code
+  Goal: Pixel-close clone of GitHub's profile page using ONLY Tailwind CSS.
+  No custom CSS for layout — everything via utility classes.
+
+  Key GitHub design decisions we're replicating:
+    - Dark background: #0d1117 (gh-bg)
+    - Surface cards: #161b22 (gh-surface)
+    - Borders: #30363d (gh-border)
+    - Accent links: #58a6ff (gh-accent)
+    - Text muted: #8b949e (gh-muted)
+    - Green (contributions/online): #3fb950 (gh-green)
+
+  Layout:
+    - Left sidebar (25%): avatar, name, bio, stats, links
+    - Right content (75%): pinned repos, contribution graph, activity
+    - Mobile: sidebar stacks above content
+
+  Things to notice as you study this:
+    1. How GitHub uses border-b to separate sections (not cards everywhere)
+    2. The contribution graph is a CSS grid, not a real chart library
+    3. Repo cards use a "stretched link" pattern for the whole card to be clickable
+    4. Icons are inline SVG — no icon library needed for simple icons
+  ============================================
+-->
+
+<body class="bg-[#0d1117] text-[#e6edf3] min-h-screen font-sans text-sm">
+
+  <!-- ============================================
+  GITHUB HEADER / NAV
+  ============================================ -->
+  <header class="bg-[#161b22] border-b border-[#30363d] sticky top-0 z-10">
+    <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+
+      <!-- GitHub logo -->
+      <div class="flex items-center gap-4 flex-shrink-0">
+        <a href="#" class="text-[#e6edf3] hover:text-white">
+          <svg height="32" aria-hidden="true" viewBox="0 0 16 16" width="32" fill="currentColor">
+            <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>
+          </svg>
+        </a>
+      </div>
+
+      <!-- Search bar -->
+      <div class="flex-1 max-w-xs hidden sm:block">
+        <div class="relative">
+          <input
+            type="text"
+            placeholder="Search or jump to..."
+            class="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-1.5 text-sm text-[#e6edf3] placeholder-[#8b949e] focus:outline-none focus:border-[#58a6ff] focus:ring-1 focus:ring-[#58a6ff]"
+          />
+          <span class="absolute right-2 top-1.5 text-[#8b949e] text-xs border border-[#30363d] rounded px-1">/</span>
+        </div>
+      </div>
+
+      <!-- Nav links -->
+      <nav class="hidden md:flex items-center gap-4">
+        <a href="#" class="text-[#e6edf3] hover:text-white text-sm font-medium">Pull requests</a>
+        <a href="#" class="text-[#e6edf3] hover:text-white text-sm font-medium">Issues</a>
+        <a href="#" class="text-[#e6edf3] hover:text-white text-sm font-medium">Marketplace</a>
+        <a href="#" class="text-[#e6edf3] hover:text-white text-sm font-medium">Explore</a>
+      </nav>
+
+      <!-- Avatar -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">D</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================
+  MAIN PROFILE LAYOUT
+  ============================================ -->
+  <main class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="lg:flex lg:gap-8">
+
+      <!-- ============================================
+      LEFT SIDEBAR: Profile card
+      ============================================ -->
+      <aside class="lg:w-[296px] flex-shrink-0 mb-6 lg:mb-0">
+
+        <!-- Avatar + names -->
+        <div class="mb-4">
+          <div class="relative mb-4">
+            <!-- Large avatar -->
+            <div class="w-[260px] h-[260px] rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center mx-auto lg:mx-0 border-2 border-[#30363d]">
+              <span class="text-8xl font-bold text-white">D</span>
+            </div>
+            <!-- Online indicator -->
+            <div class="absolute bottom-3 right-3 lg:bottom-1 lg:right-14 w-5 h-5 bg-[#3fb950] rounded-full border-2 border-[#0d1117]"></div>
+          </div>
+
+          <h1 class="text-2xl font-semibold text-[#e6edf3]">Dinesh S</h1>
+          <p class="text-xl font-light text-[#8b949e] mt-0.5">dinesh-codes</p>
+        </div>
+
+        <!-- Bio -->
+        <p class="text-[#e6edf3] mb-4 leading-relaxed">
+          Frontend engineer in training. Building things with React, TypeScript, and too much coffee. ☕
+        </p>
+
+        <!-- Follow button -->
+        <button class="w-full py-1.5 px-4 bg-[#21262d] hover:bg-[#30363d] border border-[#363b42] rounded-md text-sm font-medium text-[#e6edf3] transition-colors mb-4">
+          Follow
+        </button>
+
+        <!-- Stats: followers / following -->
+        <div class="flex items-center gap-3 mb-4 text-sm">
+          <a href="#" class="flex items-center gap-1 hover:text-[#58a6ff] transition-colors">
+            <svg class="w-4 h-4 text-[#8b949e]" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M2 5.5a3.5 3.5 0 1 1 5.898 2.549 5.508 5.508 0 0 1 3.034 4.084.75.75 0 1 1-1.482.235 4.001 4.001 0 0 0-7.9 0 .75.75 0 0 1-1.482-.236A5.507 5.507 0 0 1 3.102 8.05 3.49 3.49 0 0 1 2 5.5ZM11 4a3.001 3.001 0 0 1 2.22 5.018 5.01 5.01 0 0 1 2.56 3.012.749.749 0 0 1-.885.83.751.751 0 0 1-.565-.716 3.504 3.504 0 0 0-2.168-3.265 3.001 3.001 0 0 1-1.162-4.879ZM5.5 3.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>
+            </svg>
+            <span class="font-semibold text-[#e6edf3]">142</span>
+            <span class="text-[#8b949e]">followers</span>
+          </a>
+          <span class="text-[#30363d]">·</span>
+          <a href="#" class="flex items-center gap-1 hover:text-[#58a6ff] transition-colors">
+            <span class="font-semibold text-[#e6edf3]">89</span>
+            <span class="text-[#8b949e]">following</span>
+          </a>
+        </div>
+
+        <!-- Meta info -->
+        <ul class="space-y-2 text-sm mb-6">
+          <li class="flex items-center gap-2 text-[#8b949e]">
+            <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M1.5 14.25c0 .138.112.25.25.25H4v-1.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75v1.25h2.25a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25v12.5ZM1.75 0h8.5C11.216 0 12 .784 12 1.75v12.5A1.75 1.75 0 0 1 10.25 16h-8.5A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0Zm6 6.25a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5Zm-4 0A.25.25 0 0 1 4 6h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25H4a.25.25 0 0 1-.25-.25v-.5Z"/>
+            </svg>
+            <span>Chennai, India</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-4 h-4 flex-shrink-0 text-[#8b949e]" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M7.775 3.275a.75.75 0 0 0 1.06 1.06l1.25-1.25a2 2 0 1 1 2.83 2.83l-2.5 2.5a2 2 0 0 1-2.83 0 .75.75 0 0 0-1.06 1.06 3.5 3.5 0 0 0 4.95 0l2.5-2.5a3.5 3.5 0 0 0-4.95-4.95l-1.25 1.25Zm-4.69 9.64a2 2 0 0 1 0-2.83l2.5-2.5a2 2 0 0 1 2.83 0 .75.75 0 0 0 1.06-1.06 3.5 3.5 0 0 0-4.95 0l-2.5 2.5a3.5 3.5 0 0 0 4.95 4.95l1.25-1.25a.75.75 0 0 0-1.06-1.06l-1.25 1.25a2 2 0 0 1-2.83 0Z"/>
+            </svg>
+            <a href="#" class="text-[#58a6ff] hover:underline">dinesh.dev</a>
+          </li>
+          <li class="flex items-center gap-2 text-[#8b949e]">
+            <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M5.026 15c6.038 0 9.341-5.003 9.341-9.334q.002-.211-.006-.422A6.685 6.685 0 0 0 16 3.542a6.658 6.658 0 0 1-1.889.518 3.301 3.301 0 0 0 1.447-1.817 6.533 6.533 0 0 1-2.087.793A3.286 3.286 0 0 0 7.875 6.03a9.325 9.325 0 0 1-6.767-3.429 3.289 3.289 0 0 0 1.018 4.382A3.323 3.323 0 0 1 .64 6.575v.045a3.288 3.288 0 0 0 2.632 3.218 3.203 3.203 0 0 1-.865.115 3.23 3.23 0 0 1-.614-.057 3.283 3.283 0 0 0 3.067 2.277A6.588 6.588 0 0 1 .78 13.58a6.32 6.32 0 0 1-.78-.045A9.344 9.344 0 0 0 5.026 15Z"/>
+            </svg>
+            <a href="#" class="text-[#58a6ff] hover:underline">@dinesh_codes</a>
+          </li>
+        </ul>
+
+        <!-- Achievements -->
+        <div class="border-t border-[#30363d] pt-4 mb-4">
+          <h2 class="text-sm font-semibold text-[#e6edf3] mb-3">Achievements</h2>
+          <div class="flex items-center gap-2">
+            <span title="Quickdraw" class="text-2xl cursor-pointer hover:scale-125 transition-transform">🏆</span>
+            <span title="YOLO" class="text-2xl cursor-pointer hover:scale-125 transition-transform">🎯</span>
+            <span title="Pull Shark" class="text-2xl cursor-pointer hover:scale-125 transition-transform">🦈</span>
+            <span title="Galaxy Brain" class="text-2xl cursor-pointer hover:scale-125 transition-transform">🧠</span>
+          </div>
+        </div>
+
+        <!-- Organizations -->
+        <div class="border-t border-[#30363d] pt-4">
+          <h2 class="text-sm font-semibold text-[#e6edf3] mb-3">Organizations</h2>
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="w-8 h-8 rounded-md bg-[#21262d] border border-[#30363d] flex items-center justify-center text-xs font-bold hover:border-[#58a6ff] transition-colors cursor-pointer">⚛️</div>
+            <div class="w-8 h-8 rounded-md bg-[#21262d] border border-[#30363d] flex items-center justify-center text-xs font-bold hover:border-[#58a6ff] transition-colors cursor-pointer">🦋</div>
+            <div class="w-8 h-8 rounded-md bg-[#21262d] border border-[#30363d] flex items-center justify-center text-xs font-bold hover:border-[#58a6ff] transition-colors cursor-pointer">🌊</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ============================================
+      RIGHT CONTENT AREA
+      ============================================ -->
+      <div class="flex-1 min-w-0">
+
+        <!-- Tab bar -->
+        <div class="flex items-center border-b border-[#30363d] mb-6 overflow-x-auto">
+          <a href="#" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-[#e6edf3] border-b-2 border-[#f78166] -mb-px whitespace-nowrap">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5v-9zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8V1.5Z"/>
+            </svg>
+            Overview
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-[#8b949e] hover:text-[#e6edf3] whitespace-nowrap">
+            Repositories
+            <span class="bg-[#30363d] text-[#e6edf3] text-xs px-1.5 py-0.5 rounded-full">12</span>
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-[#8b949e] hover:text-[#e6edf3] whitespace-nowrap">Projects</a>
+          <a href="#" class="flex items-center gap-2 px-4 py-3 text-sm font-medium text-[#8b949e] hover:text-[#e6edf3] whitespace-nowrap">Stars</a>
+        </div>
+
+        <!-- Pinned Repositories -->
+        <section class="mb-8">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-[#e6edf3]">Pinned</h2>
+            <a href="#" class="text-xs text-[#58a6ff] hover:underline">Customize your pins</a>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+            <!-- Repo card 1 -->
+            <div class="bg-[#161b22] border border-[#30363d] rounded-md p-4 hover:border-[#8b949e] transition-colors">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-[#8b949e]" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5v-9zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8V1.5Z"/>
+                  </svg>
+                  <a href="#" class="text-sm font-semibold text-[#58a6ff] hover:underline">frontend-career</a>
+                </div>
+                <span class="text-xs border border-[#30363d] rounded-full px-2 py-0.5 text-[#8b949e]">Public</span>
+              </div>
+              <p class="text-xs text-[#8b949e] mb-4 leading-relaxed">
+                40-exercise journey from JavaScript fundamentals to full-stack React development.
+              </p>
+              <div class="flex items-center gap-4 text-xs text-[#8b949e]">
+                <span class="flex items-center gap-1">
+                  <span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
+                  JavaScript
+                </span>
+                <span class="flex items-center gap-1">⭐ 23</span>
+                <span class="flex items-center gap-1">🍴 8</span>
+              </div>
+            </div>
+
+            <!-- Repo card 2 -->
+            <div class="bg-[#161b22] border border-[#30363d] rounded-md p-4 hover:border-[#8b949e] transition-colors">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-[#8b949e]" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5v-9zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8V1.5Z"/>
+                  </svg>
+                  <a href="#" class="text-sm font-semibold text-[#58a6ff] hover:underline">bookmark-manager</a>
+                </div>
+                <span class="text-xs border border-[#30363d] rounded-full px-2 py-0.5 text-[#8b949e]">Public</span>
+              </div>
+              <p class="text-xs text-[#8b949e] mb-4 leading-relaxed">
+                Full-stack bookmark manager: React + Router + Context + TypeScript + Tailwind.
+              </p>
+              <div class="flex items-center gap-4 text-xs text-[#8b949e]">
+                <span class="flex items-center gap-1">
+                  <span class="w-3 h-3 rounded-full bg-blue-400 inline-block"></span>
+                  TypeScript
+                </span>
+                <span class="flex items-center gap-1">⭐ 11</span>
+                <span class="flex items-center gap-1">🍴 3</span>
+              </div>
+            </div>
+
+            <!-- Repo card 3 -->
+            <div class="bg-[#161b22] border border-[#30363d] rounded-md p-4 hover:border-[#8b949e] transition-colors">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-[#8b949e]" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5v-9zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8V1.5Z"/>
+                  </svg>
+                  <a href="#" class="text-sm font-semibold text-[#58a6ff] hover:underline">js-algorithms</a>
+                </div>
+                <span class="text-xs border border-[#30363d] rounded-full px-2 py-0.5 text-[#8b949e]">Public</span>
+              </div>
+              <p class="text-xs text-[#8b949e] mb-4 leading-relaxed">
+                DSA puzzles with fun themes: crime scenes, spy missions, and the Olympics.
+              </p>
+              <div class="flex items-center gap-4 text-xs text-[#8b949e]">
+                <span class="flex items-center gap-1">
+                  <span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
+                  JavaScript
+                </span>
+                <span class="flex items-center gap-1">⭐ 47</span>
+                <span class="flex items-center gap-1">🍴 15</span>
+              </div>
+            </div>
+
+            <!-- Repo card 4 -->
+            <div class="bg-[#161b22] border border-[#30363d] rounded-md p-4 hover:border-[#8b949e] transition-colors">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-[#8b949e]" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5v-9zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8V1.5Z"/>
+                  </svg>
+                  <a href="#" class="text-sm font-semibold text-[#58a6ff] hover:underline">tailwind-labs</a>
+                </div>
+                <span class="text-xs border border-[#30363d] rounded-full px-2 py-0.5 text-[#8b949e]">Public</span>
+              </div>
+              <p class="text-xs text-[#8b949e] mb-4 leading-relaxed">
+                UI experiments and clone challenges using only Tailwind CSS. No custom styles.
+              </p>
+              <div class="flex items-center gap-4 text-xs text-[#8b949e]">
+                <span class="flex items-center gap-1">
+                  <span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span>
+                  HTML
+                </span>
+                <span class="flex items-center gap-1">⭐ 19</span>
+                <span class="flex items-center gap-1">🍴 5</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Contribution Graph -->
+        <section class="bg-[#161b22] border border-[#30363d] rounded-md p-4 mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold text-[#e6edf3]">
+              <span id="contrib-total">847</span> contributions in the last year
+            </h2>
+            <div class="flex items-center gap-2 text-xs text-[#8b949e]">
+              <span>Less</span>
+              <div class="flex gap-1">
+                <div class="contrib-day contrib-0"></div>
+                <div class="contrib-day contrib-1"></div>
+                <div class="contrib-day contrib-2"></div>
+                <div class="contrib-day contrib-3"></div>
+                <div class="contrib-day contrib-4"></div>
+              </div>
+              <span>More</span>
+            </div>
+          </div>
+
+          <!-- Contribution grid — generated by JS -->
+          <div id="contrib-grid" class="overflow-x-auto">
+            <div id="contrib-weeks" class="flex gap-[3px]" style="min-width: 700px;"></div>
+          </div>
+
+          <!-- Month labels -->
+          <div id="contrib-months" class="flex text-xs text-[#8b949e] mt-2" style="min-width: 700px; padding-left: 2px;"></div>
+        </section>
+
+        <!-- Activity feed -->
+        <section>
+          <h2 class="text-sm font-semibold text-[#e6edf3] mb-4">Recent activity</h2>
+          <div class="space-y-4">
+
+            <div class="flex gap-3">
+              <div class="w-8 h-8 rounded-full bg-[#21262d] border border-[#30363d] flex items-center justify-center text-sm flex-shrink-0">🔀</div>
+              <div>
+                <p class="text-sm text-[#e6edf3]">
+                  Merged pull request <a href="#" class="text-[#58a6ff] hover:underline">#12 — Add TypeScript generics exercises</a>
+                  in <a href="#" class="text-[#58a6ff] hover:underline">dinesh-codes/frontend-career</a>
+                </p>
+                <p class="text-xs text-[#8b949e] mt-0.5">2 hours ago</p>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <div class="w-8 h-8 rounded-full bg-[#21262d] border border-[#30363d] flex items-center justify-center text-sm flex-shrink-0">⭐</div>
+              <div>
+                <p class="text-sm text-[#e6edf3]">
+                  Starred <a href="#" class="text-[#58a6ff] hover:underline">shadcn/ui</a>
+                </p>
+                <p class="text-xs text-[#8b949e] mt-0.5">Yesterday</p>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <div class="w-8 h-8 rounded-full bg-[#21262d] border border-[#30363d] flex items-center justify-center text-sm flex-shrink-0">🐛</div>
+              <div>
+                <p class="text-sm text-[#e6edf3]">
+                  Opened issue <a href="#" class="text-[#58a6ff] hover:underline">#45 — Dark mode flashes on page reload</a>
+                  in <a href="#" class="text-[#58a6ff] hover:underline">dinesh-codes/frontend-career</a>
+                </p>
+                <p class="text-xs text-[#8b949e] mt-0.5">3 days ago</p>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <div class="w-8 h-8 rounded-full bg-[#21262d] border border-[#30363d] flex items-center justify-center text-sm flex-shrink-0">📝</div>
+              <div>
+                <p class="text-sm text-[#e6edf3]">
+                  Pushed 4 commits to <a href="#" class="text-[#58a6ff] hover:underline">main</a>
+                  in <a href="#" class="text-[#58a6ff] hover:underline">dinesh-codes/frontend-career</a>
+                </p>
+                <p class="text-xs text-[#8b949e] mt-0.5">4 days ago</p>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ============================================
+    // Generate contribution graph
+    // ============================================
+    function generateContribGraph() {
+      const weeksContainer = document.getElementById('contrib-weeks');
+      const monthsContainer = document.getElementById('contrib-months');
+
+      const today = new Date();
+      const weeks = 52;
+      const daysPerWeek = 7;
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      let monthLabels = [];
+      let lastMonth = -1;
+
+      for (let w = 0; w < weeks; w++) {
+        const weekEl = document.createElement('div');
+        weekEl.className = 'flex flex-col gap-[3px]';
+
+        for (let d = 0; d < daysPerWeek; d++) {
+          const daysAgo = (weeks - 1 - w) * 7 + (daysPerWeek - 1 - d);
+          const date = new Date(today);
+          date.setDate(today.getDate() - daysAgo);
+
+          const month = date.getMonth();
+          if (w < weeks - 1 && d === 0 && month !== lastMonth) {
+            monthLabels.push({ week: w, label: months[month] });
+            lastMonth = month;
+          }
+
+          // Simulate contribution data (higher on weekdays)
+          const isWeekend = d === 0 || d === 6;
+          const rand = Math.random();
+          let level;
+          if (rand < (isWeekend ? 0.7 : 0.3)) level = 0;
+          else if (rand < 0.5) level = 1;
+          else if (rand < 0.7) level = 2;
+          else if (rand < 0.85) level = 3;
+          else level = 4;
+
+          const dayEl = document.createElement('div');
+          dayEl.className = `contrib-day contrib-${level}`;
+          dayEl.title = `${level} contributions on ${date.toDateString()}`;
+          weekEl.appendChild(dayEl);
+        }
+
+        weeksContainer.appendChild(weekEl);
+      }
+
+      // Month labels
+      const weekWidth = 13; // 10px square + 3px gap
+      monthLabels.forEach(({ week, label }) => {
+        const span = document.createElement('span');
+        span.textContent = label;
+        span.style.width = `${weekWidth}px`;
+        span.style.position = 'absolute';
+        span.style.left = `${week * weekWidth + 2}px`;
+        monthsContainer.style.position = 'relative';
+        monthsContainer.style.height = '16px';
+        monthsContainer.appendChild(span);
+      });
+    }
+
+    generateContribGraph();
+  </script>
+
+  <!--
+  ============================================
+  CHECKPOINT: Stop! Answer these before continuing
+  ============================================
+  1. GitHub uses its own color palette (#0d1117, #161b22, etc.) but Tailwind
+     has its own color system. How did we use both? Look at the bg-[#0d1117] syntax.
+     What is this called in Tailwind? When would you use it vs extending the config?
+
+  2. The sidebar and content use lg:flex lg:gap-8 with lg:w-[296px].
+     On screens below lg (1024px), how does the layout behave?
+     What class makes the sidebar stack above the content on mobile?
+
+  3. The contribution graph is built with JavaScript, not with a charting library.
+     Describe how it works: what CSS classes create the color levels?
+     How does the week/day grid get laid out?
+
+  4. The "tab bar" uses border-b-2 border-[#f78166] on the active tab.
+     What visual effect does this create? How is this different from using
+     a background color to show the active tab?
+
+  ============================================
+  YOUR TURN: Make It Responsive
+  ============================================
+  The page already has some responsive classes, but needs more work.
+
+  TASK 1 — Mobile header:
+    On mobile (< sm), the nav links are hidden. Add a hamburger menu:
+    - Show a ☰ button on mobile (hidden on sm+)
+    - Clicking it toggles a dropdown with: Pull requests, Issues, Marketplace, Explore
+    - The dropdown slides down from the header
+    - Close on outside click
+
+  TASK 2 — Mobile profile:
+    On mobile, the profile should be more compact:
+    - Avatar: 96x96 instead of 260x260 (sm:w-64 sm:h-64 w-24 h-24)
+    - Name and username should appear NEXT TO the avatar on mobile
+    - Follow button and meta info go below (full width)
+    - Implement: flex on mobile with avatar left, name+button right
+
+  TASK 3 — Contribution graph responsiveness:
+    The graph has min-width: 700px and scrolls on small screens.
+    Add a "Show less" button on mobile that switches to showing only 26 weeks (half).
+    Keep the full 52 weeks on desktop (lg+).
+
+  TASK 4 — Repository card touch targets:
+    On mobile, make the entire repo card clickable (not just the title link).
+    Use the "stretched link" pattern:
+    - Add relative to the card container
+    - Add after:absolute after:inset-0 after:content-[''] to the main link
+    - This makes the pseudo-element cover the whole card, expanding the click area
+
+  BONUS — Hover tooltip on contribution squares:
+    Currently the contribution squares have a basic HTML title attribute.
+    Replace it with a custom CSS tooltip that:
+    - Appears above the square on hover
+    - Shows "X contributions on [date]"
+    - Uses absolute positioning and z-index
+    - Has a small arrow pointing down
+    (Pure CSS/Tailwind, no JavaScript needed — use the group/peer pattern)
+  ============================================
+  -->
+
+</body>
+</html>

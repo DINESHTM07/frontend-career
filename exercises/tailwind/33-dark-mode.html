@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exercise 33: Dark Mode Toggle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Configure Tailwind to use class-based dark mode (not media query)
+    tailwind.config = {
+      darkMode: 'class',  // toggle 'dark' class on <html> to switch modes
+    }
+  </script>
+  <style>
+    /* Smooth transition for all color changes */
+    * {
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    /* Prevent flash of wrong theme on page load */
+    html { visibility: hidden; }
+    html.ready { visibility: visible; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen">
+
+  <!-- ============================================
+  INTRO: Dark Mode — Observer + State Machine
+  ============================================
+  PATTERN: Observer + State Machine
+
+  State Machine: theme has 3 states
+    'light'  → always light, ignore system
+    'dark'   → always dark, ignore system
+    'system' → follow OS preference (matchMedia)
+
+  Observer: when state is 'system', we OBSERVE the OS preference
+    window.matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', handler)
+    → like subscribing to an event feed
+
+  How Tailwind dark mode works:
+    darkMode: 'class' → looks for 'dark' class on <html>
+    dark:bg-gray-950  → only applies when html.dark exists
+    dark:text-white   → same
+    Remove 'dark' class → light mode
+    Add 'dark' class    → dark mode
+
+  Implementation flow:
+    User clicks "Dark" → setTheme('dark') → add 'dark' to <html> → Tailwind applies dark: classes
+    User clicks "System" → setTheme('system') → check OS → add/remove 'dark' + subscribe to changes
+    User changes OS to dark → observer fires → toggles 'dark' class → page switches instantly
+  ============================================ -->
+
+  <!-- ============================================
+  SCRIPT: Theme state machine — must run before body renders
+  ============================================ -->
+  <script>
+    // State machine for theme
+    // States: 'light' | 'dark' | 'system'
+    const ThemeStates = {
+      LIGHT: 'light',
+      DARK: 'dark',
+      SYSTEM: 'system',
+    };
+
+    let currentTheme = ThemeStates.LIGHT;
+    let systemMediaQuery = null;
+    let systemChangeHandler = null;
+
+    // ---- Transition: Apply the theme to the DOM ----
+    function applyTheme(theme) {
+      currentTheme = theme;
+      localStorage.setItem('theme', theme);
+
+      // Unsubscribe from system changes if switching away from 'system'
+      if (theme !== ThemeStates.SYSTEM && systemMediaQuery && systemChangeHandler) {
+        systemMediaQuery.removeEventListener('change', systemChangeHandler);
+        systemChangeHandler = null;
+      }
+
+      if (theme === ThemeStates.DARK) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      } else if (theme === ThemeStates.LIGHT) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else if (theme === ThemeStates.SYSTEM) {
+        // Observer pattern: subscribe to OS changes
+        systemMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+        // Apply current OS preference immediately
+        if (systemMediaQuery.matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+
+        // Subscribe to future OS changes
+        systemChangeHandler = (e) => {
+          if (e.matches) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          updateToggleUI(); // update button states when OS changes
+        };
+
+        systemMediaQuery.addEventListener('change', systemChangeHandler);
+      }
+
+      updateToggleUI();
+    }
+
+    // ---- Initialize: read saved preference on page load ----
+    function initTheme() {
+      const saved = localStorage.getItem('theme');
+      const valid = Object.values(ThemeStates);
+      applyTheme(valid.includes(saved) ? saved : ThemeStates.SYSTEM);
+      document.documentElement.classList.add('ready'); // prevent flash
+    }
+
+    // ---- Update toggle button states ----
+    function updateToggleUI() {
+      const buttons = {
+        light: document.getElementById('btn-light'),
+        dark: document.getElementById('btn-dark'),
+        system: document.getElementById('btn-system'),
+      };
+
+      const isDarkActive = document.documentElement.classList.contains('dark');
+
+      Object.entries(buttons).forEach(([theme, btn]) => {
+        if (!btn) return;
+        const isActive = theme === currentTheme;
+
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        btn.classList.toggle('bg-white', isActive && !isDarkActive);
+        btn.classList.toggle('dark:bg-gray-700', isActive);
+        btn.classList.toggle('shadow-sm', isActive);
+        btn.classList.toggle('text-gray-900', isActive && !isDarkActive);
+        btn.classList.toggle('dark:text-white', isActive);
+        btn.classList.toggle('text-gray-500', !isActive);
+        btn.classList.toggle('hover:text-gray-700', !isActive);
+        btn.classList.toggle('dark:hover:text-gray-300', !isActive);
+      });
+
+      // Update icon and label in the floating toggle
+      const floatingIcon = document.getElementById('floating-icon');
+      const floatingLabel = document.getElementById('floating-label');
+      if (floatingIcon) {
+        floatingIcon.textContent = isDarkActive ? '☀️' : '🌙';
+        floatingLabel.textContent = isDarkActive ? 'Light' : 'Dark';
+        floatingIcon.setAttribute('title', isDarkActive ? 'Switch to light mode' : 'Switch to dark mode');
+      }
+    }
+
+    // Run immediately (before body paints) to avoid flash
+    initTheme();
+  </script>
+
+  <!-- ============================================
+  TOP NAVIGATION
+  ============================================ -->
+  <nav class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+
+      <div class="flex items-center gap-8">
+        <a href="#" class="text-lg font-bold text-gray-900 dark:text-white">DevBlog</a>
+        <div class="hidden sm:flex items-center gap-6">
+          <a href="#" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Articles</a>
+          <a href="#" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Projects</a>
+          <a href="#" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">About</a>
+        </div>
+      </div>
+
+      <!-- Theme Toggle — Segmented Control -->
+      <div class="flex items-center gap-3">
+        <div
+          class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-0.5"
+          role="group"
+          aria-label="Theme selector"
+        >
+          <button
+            id="btn-light"
+            onclick="applyTheme('light')"
+            title="Light mode"
+            aria-pressed="false"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-all text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            ☀️ <span class="hidden sm:inline">Light</span>
+          </button>
+
+          <button
+            id="btn-dark"
+            onclick="applyTheme('dark')"
+            title="Dark mode"
+            aria-pressed="false"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-all text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            🌙 <span class="hidden sm:inline">Dark</span>
+          </button>
+
+          <button
+            id="btn-system"
+            onclick="applyTheme('system')"
+            title="Follow system preference"
+            aria-pressed="false"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-all text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            💻 <span class="hidden sm:inline">System</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================================
+  HERO
+  ============================================ -->
+  <div class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-16 text-center">
+      <span class="inline-block text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-3 py-1 rounded-full mb-4">
+        The Dev Journal
+      </span>
+      <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+        Ideas Worth Reading
+      </h1>
+      <p class="text-lg text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
+        Deep dives into modern web development. TypeScript, React, system design, and the craft of building software.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================
+  MAIN CONTENT
+  ============================================ -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+
+    <!-- Featured post -->
+    <div class="mb-12">
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-4">Featured</h2>
+      <article class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-md dark:hover:shadow-gray-900 transition-shadow">
+        <div class="md:flex">
+          <div class="md:w-1/2 bg-gradient-to-br from-indigo-500 to-purple-600 p-12 flex items-center justify-center">
+            <div class="text-center text-white">
+              <div class="text-6xl mb-4">🎯</div>
+              <div class="text-sm font-medium opacity-75">In-depth Guide</div>
+            </div>
+          </div>
+          <div class="md:w-1/2 p-8">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-1 rounded-full">TypeScript</span>
+              <span class="text-xs text-gray-400">12 min read</span>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+              Why TypeScript Generics Changed How I Think About Code
+            </h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+              I resisted generics for two years. Then one refactor session changed everything. Here's what I wish someone had told me earlier about writing reusable, type-safe abstractions.
+            </p>
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400">D</div>
+              <div>
+                <div class="text-sm font-medium text-gray-900 dark:text-white">Dinesh S</div>
+                <div class="text-xs text-gray-400">April 5, 2026</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <!-- Post grid -->
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-4">Recent Articles</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+
+      <!-- Card 1 -->
+      <article class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group">
+        <div class="h-40 bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-5xl">
+          ⚡
+        </div>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-medium bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">Performance</span>
+            <span class="text-xs text-gray-400">8 min</span>
+          </div>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            Core Web Vitals: A Practical Guide
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+            LCP, FID, CLS — what they actually mean and how to fix them without rewriting your entire app.
+          </p>
+        </div>
+      </article>
+
+      <!-- Card 2 -->
+      <article class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group">
+        <div class="h-40 bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-5xl">
+          🏗️
+        </div>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-medium bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">Architecture</span>
+            <span class="text-xs text-gray-400">15 min</span>
+          </div>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            Folder Structure That Scales
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+            The folder structure decisions that saved our team months of confusion as the codebase grew to 200+ components.
+          </p>
+        </div>
+      </article>
+
+      <!-- Card 3 -->
+      <article class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow group">
+        <div class="h-40 bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-5xl">
+          🔐
+        </div>
+        <div class="p-5">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-medium bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full">Security</span>
+            <span class="text-xs text-gray-400">10 min</span>
+          </div>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            Auth Without the Headaches
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+            NextAuth, Clerk, Supabase Auth — we tried all three. Here's our honest comparison and when to use each.
+          </p>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- Code block demo — should look good in both modes -->
+    <section class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-8 mb-12">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Theme Toggle: How It Works</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        This page uses a 3-state theme machine. Here's the core logic:
+      </p>
+
+      <!-- Code block -->
+      <div class="bg-gray-950 dark:bg-gray-950 rounded-xl overflow-hidden border border-gray-800">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded-full bg-red-500"></span>
+            <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+            <span class="w-3 h-3 rounded-full bg-green-500"></span>
+          </div>
+          <span class="text-xs text-gray-500">theme.js</span>
+        </div>
+        <pre class="p-4 text-sm overflow-x-auto"><code class="text-gray-300"><span class="text-purple-400">function</span> <span class="text-blue-400">applyTheme</span>(theme) {
+  <span class="text-purple-400">if</span> (theme === <span class="text-green-400">'dark'</span>) {
+    document.documentElement.classList.<span class="text-yellow-400">add</span>(<span class="text-green-400">'dark'</span>);
+  } <span class="text-purple-400">else if</span> (theme === <span class="text-green-400">'system'</span>) {
+    <span class="text-gray-500">// Observer pattern: subscribe to OS changes</span>
+    <span class="text-purple-400">const</span> mq = window.<span class="text-yellow-400">matchMedia</span>(<span class="text-green-400">'(prefers-color-scheme: dark)'</span>);
+    mq.<span class="text-yellow-400">addEventListener</span>(<span class="text-green-400">'change'</span>, e => {
+      document.documentElement.classList.<span class="text-yellow-400">toggle</span>(<span class="text-green-400">'dark'</span>, e.matches);
+    });
+  }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- Newsletter CTA -->
+    <section class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 text-center text-white">
+      <h2 class="text-2xl font-bold mb-2">Stay in the Loop</h2>
+      <p class="text-indigo-200 mb-6">
+        One article per week. No spam. Unsubscribe anytime.
+      </p>
+      <form class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" onsubmit="return false">
+        <input
+          type="email"
+          placeholder="your@email.com"
+          class="flex-1 px-4 py-2.5 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
+        />
+        <button
+          type="submit"
+          class="px-6 py-2.5 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 transition-colors"
+        >
+          Subscribe
+        </button>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-200 dark:border-gray-800 mt-12">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center text-sm text-gray-400 dark:text-gray-600">
+      <p>Built with Tailwind CSS — <span id="current-theme-display">light mode</span></p>
+    </div>
+  </footer>
+
+  <!-- Floating quick-toggle (mobile-friendly) -->
+  <button
+    onclick="applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark')"
+    class="fixed bottom-6 right-6 w-12 h-12 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-full shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:scale-110 transition-transform sm:hidden"
+    title="Toggle theme"
+  >
+    <span id="floating-icon">🌙</span>
+  </button>
+
+  <!-- Update footer text + run initial UI update after DOM is ready -->
+  <script>
+    // Update footer display when theme changes
+    const origApply = applyTheme;
+    // Patch applyTheme to also update footer (decorating the existing function)
+    window.applyTheme = function(theme) {
+      origApply(theme);
+      const display = document.getElementById('current-theme-display');
+      if (display) {
+        const isDark = document.documentElement.classList.contains('dark');
+        display.textContent = `${isDark ? 'dark' : 'light'} mode (${theme} preference)`;
+      }
+    };
+
+    // Update UI to reflect current state after DOM is loaded
+    updateToggleUI();
+  </script>
+
+  <!--
+  ============================================
+  CHECKPOINT: Stop! Answer these before continuing
+  ============================================
+  1. Why do we configure tailwind.config = { darkMode: 'class' } instead of
+     letting Tailwind use the default (media query) dark mode?
+     What's the difference in user experience?
+
+  2. What is the Observer pattern in this code?
+     Name the observable, the observer, and when the subscription is created/removed.
+
+  3. Why do we run the initTheme() function in a <script> tag BEFORE the body renders
+     rather than in DOMContentLoaded or a deferred script?
+
+  4. What is the State Machine here?
+     Draw the 3 states and the transitions between them.
+     Which state has a side effect (subscription) when entered?
+
+  ============================================
+  YOUR TURN: Add System Preference Detection
+  ============================================
+  The 'System' mode above already follows OS preference.
+  Your tasks are to enhance and extend this:
+
+  TASK 1 — Scheduled dark mode:
+    Add a "Auto (time-based)" option to the theme segmented control.
+    Logic: dark mode from 6 PM to 6 AM, light mode from 6 AM to 6 PM.
+    Update every minute using setInterval.
+    Show user the schedule: "Dark from 6 PM – 6 AM"
+
+  TASK 2 — Theme persistence across tabs:
+    Currently, changing the theme in one tab doesn't update other open tabs.
+    Use the Storage event to sync across tabs:
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'theme') applyTheme(e.newValue);
+      })
+    Test by opening two browser windows side by side.
+
+  TASK 3 — Smooth page transition:
+    When switching themes, add a brief full-page overlay that fades in and out
+    to make the transition less jarring:
+    1. Add a div#theme-overlay with fixed positioning and z-50
+    2. On theme change: fade it in (opacity-0 → opacity-100) over 100ms
+    3. Apply the theme
+    4. Fade the overlay out (opacity-100 → opacity-0) over 100ms
+
+  TASK 4 — Theme announcement (accessibility):
+    When theme changes, announce it to screen readers:
+    <div id="theme-announcement" role="status" aria-live="polite" class="sr-only"></div>
+    On theme change: document.getElementById('theme-announcement').textContent = `Switched to ${theme} mode`
+
+  BONUS — Custom accent color picker:
+    Add a color picker that lets users set a custom accent color.
+    Store the value in localStorage as --accent-color: #6366f1.
+    Apply it as a CSS custom property on document.documentElement.
+    Use it in Tailwind with arbitrary values: [color:var(--accent-color)].
+  ============================================
+  -->
+
+</body>
+</html>

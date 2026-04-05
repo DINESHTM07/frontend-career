@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>15 — Keyboard Warrior: State Machine + Event Loop</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+    }
+
+    h1 { font-size: 1rem; color: #555; margin-bottom: 4px; }
+    .subtitle { font-size: 0.75rem; color: #333; margin-bottom: 28px; }
+
+    /* ---- Stats row ---- */
+    .stats-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .stat-card {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 10px;
+      padding: 12px 20px;
+      text-align: center;
+      min-width: 90px;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #e0e0e0;
+      display: block;
+      line-height: 1;
+    }
+
+    .stat-value.green  { color: #2ecc71; }
+    .stat-value.yellow { color: #f1c40f; }
+    .stat-value.red    { color: #e74c3c; }
+    .stat-value.blue   { color: #3498db; }
+
+    .stat-label {
+      font-size: 0.65rem;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+      display: block;
+    }
+
+    /* ---- Game area ---- */
+    #game-area {
+      width: 100%;
+      max-width: 680px;
+    }
+
+    /* ---- State: IDLE ---- */
+    #screen-idle {
+      text-align: center;
+      padding: 40px;
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 16px;
+    }
+
+    #screen-idle h2 { font-size: 1.5rem; margin-bottom: 8px; }
+    #screen-idle p { color: #666; margin-bottom: 24px; font-size: 0.9rem; }
+
+    .difficulty-btns {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .diff-btn {
+      padding: 8px 20px;
+      border: 1px solid #2a2a2a;
+      background: #1a1a1a;
+      color: #888;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+
+    .diff-btn:hover, .diff-btn.selected {
+      background: #1a2a4a;
+      border-color: #3a5fcd;
+      color: #7aa0f0;
+    }
+
+    .start-btn {
+      padding: 12px 40px;
+      background: #3a5fcd;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    .start-btn:hover { background: #4a6fdd; }
+
+    /* ---- State: COUNTDOWN ---- */
+    #screen-countdown {
+      text-align: center;
+      padding: 60px;
+      display: none;
+    }
+
+    #countdown-number {
+      font-size: 5rem;
+      font-weight: 900;
+      color: #3a5fcd;
+      animation: pulse 1s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    /* ---- State: PLAYING ---- */
+    #screen-playing { display: none; }
+
+    .progress-bar-wrap {
+      height: 4px;
+      background: #1a1a1a;
+      border-radius: 2px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    #progress-bar {
+      height: 100%;
+      background: #3a5fcd;
+      transition: width 0.1s linear;
+      width: 100%;
+    }
+
+    #progress-bar.warning { background: #e74c3c; }
+
+    #word-display {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 28px 24px;
+      margin-bottom: 14px;
+      min-height: 90px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 2px;
+      line-height: 1.8;
+    }
+
+    /* Each character is a span for per-char color feedback */
+    .char { font-size: 1.6rem; font-family: monospace; transition: color 0.05s; }
+    .char.correct  { color: #2ecc71; }
+    .char.wrong    { color: #e74c3c; text-decoration: underline; }
+    .char.current  { color: #e0e0e0; border-bottom: 2px solid #3a5fcd; }
+    .char.pending  { color: #333; }
+
+    #streak-display {
+      font-size: 0.75rem;
+      color: #555;
+      margin-bottom: 10px;
+      height: 20px;
+    }
+
+    .streak-fire { color: #f1c40f; }
+
+    #type-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: #111;
+      border: 2px solid #2a2a2a;
+      border-radius: 10px;
+      color: #e0e0e0;
+      font-size: 1.1rem;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    #type-input:focus      { border-color: #3a5fcd; }
+    #type-input.correct    { border-color: #2ecc71; }
+    #type-input.error      { border-color: #e74c3c; }
+    #type-input:disabled   { opacity: 0.4; }
+
+    /* ---- State: RESULT ---- */
+    #screen-result {
+      text-align: center;
+      padding: 32px;
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 16px;
+      display: none;
+    }
+
+    #result-wpm {
+      font-size: 4rem;
+      font-weight: 900;
+      color: #3a5fcd;
+    }
+
+    #result-grade { font-size: 1.2rem; margin: 8px 0 20px; color: #888; }
+
+    .result-breakdown {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .result-stat {
+      background: #1a1a1a;
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .result-stat-value { font-size: 1.3rem; font-weight: 700; }
+    .result-stat-label { font-size: 0.65rem; color: #555; margin-top: 2px; }
+
+    #high-score-notice {
+      color: #f1c40f;
+      font-size: 0.85rem;
+      margin: 8px 0;
+      min-height: 20px;
+    }
+
+    .result-actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+
+    .retry-btn {
+      padding: 10px 28px;
+      background: #3a5fcd;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .change-btn {
+      padding: 10px 28px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #888;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    /* ---- High score board ---- */
+    #score-board {
+      width: 100%;
+      max-width: 680px;
+      margin-top: 24px;
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    #score-board h3 { font-size: 0.8rem; color: #555; margin-bottom: 12px; }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid #1a1a1a;
+      font-size: 0.8rem;
+    }
+
+    .score-row:last-child { border-bottom: none; }
+    .score-rank { color: #555; width: 20px; }
+    .score-wpm  { font-weight: 700; color: #e0e0e0; width: 70px; }
+    .score-acc  { color: #888; width: 60px; }
+    .score-diff { color: #666; flex: 1; }
+    .score-date { color: #444; font-size: 0.7rem; }
+  </style>
+</head>
+<body>
+
+<!--
+  ============================================
+  INTRO: State Machine + Event Loop and WHY they matter
+  ============================================
+  A State Machine models a system as a finite set of states with defined
+  transitions. The system is ALWAYS in exactly one state. Events trigger
+  transitions between states. Invalid transitions are simply ignored.
+
+  This game has 4 states:
+    IDLE → (start) → COUNTDOWN → (timer ends) → PLAYING → (time up/done) → RESULT
+    RESULT → (retry) → COUNTDOWN
+    RESULT → (change settings) → IDLE
+
+  The Event Loop is JavaScript's mechanism for handling async operations.
+  The game loop uses requestAnimationFrame (NOT setInterval) because:
+  - rAF syncs to the display refresh rate (60fps)
+  - rAF pauses when the tab is hidden (no battery waste)
+  - rAF provides a high-precision DOMHighResTimeStamp
+  - setInterval accumulates drift over time; rAF recalculates each frame
+
+  WHY state machines matter: React is built on the same idea.
+  useState holds one state value. User events trigger state transitions.
+  Rendering is a pure function of the current state.
+  ============================================
+
+  ============================================
+  MENTAL MODEL: How to think about it
+  ============================================
+  State machine: a traffic light has 3 states (red, yellow, green).
+  You can't go from red directly to yellow. Transitions are defined.
+  An invalid event in a state does nothing — it's "impossible to misuse."
+
+  Event loop: JavaScript processes one thing at a time. setTimeout callbacks
+  are queued. requestAnimationFrame callbacks run before each screen paint.
+  Microtasks (Promises) run before the next task from the queue.
+  ============================================
+-->
+
+<h1>Exercise 15 — Keyboard Warrior</h1>
+<p class="subtitle">PATTERN: State Machine + Event Loop | Type fast, earn glory</p>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <span class="stat-value blue" id="live-wpm">--</span>
+    <span class="stat-label">WPM</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value green" id="live-accuracy">--%</span>
+    <span class="stat-label">Accuracy</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value yellow" id="live-streak">0</span>
+    <span class="stat-label">Streak 🔥</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value" id="live-time">60</span>
+    <span class="stat-label">Seconds</span>
+  </div>
+</div>
+
+<div id="game-area">
+  <!-- IDLE state -->
+  <div id="screen-idle">
+    <h2>⌨️ Keyboard Warrior</h2>
+    <p>Type as many words as you can before time runs out.</p>
+    <div class="difficulty-btns">
+      <button class="diff-btn selected" data-diff="easy">Easy — 60s</button>
+      <button class="diff-btn" data-diff="medium">Medium — 45s</button>
+      <button class="diff-btn" data-diff="hard">Hard — 30s</button>
+      <button class="diff-btn" data-diff="insane">Insane — 20s</button>
+    </div>
+    <button class="start-btn" id="btn-start">Start Typing →</button>
+  </div>
+
+  <!-- COUNTDOWN state -->
+  <div id="screen-countdown">
+    <div id="countdown-number">3</div>
+  </div>
+
+  <!-- PLAYING state -->
+  <div id="screen-playing">
+    <div class="progress-bar-wrap">
+      <div id="progress-bar"></div>
+    </div>
+    <div id="word-display" aria-live="polite"></div>
+    <div id="streak-display"></div>
+    <input
+      type="text"
+      id="type-input"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      aria-label="Type here"
+      placeholder="Start typing..."
+    />
+  </div>
+
+  <!-- RESULT state -->
+  <div id="screen-result">
+    <div id="result-wpm">0</div>
+    <div id="result-grade">Loading grade...</div>
+    <div class="result-breakdown">
+      <div class="result-stat">
+        <div class="result-stat-value" id="res-accuracy">--%</div>
+        <div class="result-stat-label">Accuracy</div>
+      </div>
+      <div class="result-stat">
+        <div class="result-stat-value" id="res-words">0</div>
+        <div class="result-stat-label">Words</div>
+      </div>
+      <div class="result-stat">
+        <div class="result-stat-value" id="res-chars">0</div>
+        <div class="result-stat-label">Chars</div>
+      </div>
+      <div class="result-stat">
+        <div class="result-stat-value" id="res-streak">0</div>
+        <div class="result-stat-label">Best Streak</div>
+      </div>
+    </div>
+    <div id="high-score-notice"></div>
+    <div class="result-actions">
+      <button class="retry-btn" id="btn-retry">↺ Retry</button>
+      <button class="change-btn" id="btn-change">⚙ Change Settings</button>
+    </div>
+  </div>
+</div>
+
+<div id="score-board">
+  <h3>🏆 High Scores (localStorage)</h3>
+  <div id="score-list"></div>
+</div>
+
+<script>
+// ============================================
+// GUIDED CODE: State machine + rAF game loop
+// ============================================
+
+// ---- WORD BANK ----
+
+const WORD_BANK = {
+  easy:   "the and for you are not this that with from have been they which will would there their about some than when into more also time just people make know year great think come good other those last over been here back each then under other".split(" "),
+  medium: "function variable declare return const promise callback async await typeof instanceof prototype closure scope hoisting render component useState useEffect router navigate import export module default async promise resolve reject finally".split(" "),
+  hard:   "asynchronous synchronous idempotent memoization debouncing throttling polymorphism encapsulation abstraction inheritance destructuring concatenation interpolation accumulator recursion middleware serialization deserialization optimization refactoring".split(" "),
+  insane: "AbortController IntersectionObserver requestAnimationFrame getElementsByClassName addEventListener removeEventListener querySelector querySelectorAll MutationObserver PerformanceObserver CustomEvent dispatchEvent".split(" "),
+};
+
+// ---- DIFFICULTY SETTINGS ----
+
+const DIFFICULTIES = {
+  easy:   { time: 60, wordCount: 60, wordsPerLine: 8 },
+  medium: { time: 45, wordCount: 60, wordsPerLine: 8 },
+  hard:   { time: 30, wordCount: 60, wordsPerLine: 8 },
+  insane: { time: 20, wordCount: 40, wordsPerLine: 5 },
+};
+
+// ---- STATE MACHINE ----
+// Valid transitions:
+//   IDLE → COUNTDOWN (on start)
+//   COUNTDOWN → PLAYING (timer fires)
+//   PLAYING → RESULT (time up or all words typed)
+//   RESULT → COUNTDOWN (retry)
+//   RESULT → IDLE (change settings)
+
+const STATES = { IDLE: "idle", COUNTDOWN: "countdown", PLAYING: "playing", RESULT: "result" };
+
+const game = {
+  state: STATES.IDLE,
+  difficulty: "easy",
+
+  // Playing state
+  words: [],
+  currentWordIndex: 0,
+  currentInput: "",
+  correctWords: 0,
+  incorrectChars: 0,
+  totalTyped: 0,
+  startTime: 0,
+  timeLimit: 60,
+  timeRemaining: 60,
+  streak: 0,
+  bestStreak: 0,
+  rafId: null,
+
+  // For WPM calculation
+  correctChars: 0,
+};
+
+// ---- STATE TRANSITION ----
+
+function transition(newState, payload = {}) {
+  // Guard: only allow valid transitions
+  const valid = {
+    [STATES.IDLE]:      [STATES.COUNTDOWN],
+    [STATES.COUNTDOWN]: [STATES.PLAYING],
+    [STATES.PLAYING]:   [STATES.RESULT],
+    [STATES.RESULT]:    [STATES.COUNTDOWN, STATES.IDLE],
+  };
+
+  if (!valid[game.state]?.includes(newState)) {
+    console.warn(`Invalid transition: ${game.state} → ${newState}`);
+    return;
+  }
+
+  game.state = newState;
+  render(newState, payload);
+}
+
+// ---- RENDER: Show correct screen based on state ----
+
+function render(state, payload = {}) {
+  // Hide all screens
+  document.getElementById("screen-idle").style.display = "none";
+  document.getElementById("screen-countdown").style.display = "none";
+  document.getElementById("screen-playing").style.display = "none";
+  document.getElementById("screen-result").style.display = "none";
+
+  switch (state) {
+    case STATES.IDLE:
+      document.getElementById("screen-idle").style.display = "block";
+      resetLiveStats();
+      break;
+
+    case STATES.COUNTDOWN:
+      document.getElementById("screen-countdown").style.display = "block";
+      runCountdown();
+      break;
+
+    case STATES.PLAYING:
+      document.getElementById("screen-playing").style.display = "block";
+      startGame();
+      break;
+
+    case STATES.RESULT:
+      document.getElementById("screen-result").style.display = "block";
+      showResult(payload);
+      break;
+  }
+}
+
+// ---- COUNTDOWN ----
+
+function runCountdown() {
+  let count = 3;
+  const el = document.getElementById("countdown-number");
+  el.textContent = count;
+
+  const tick = setInterval(() => {
+    count--;
+    if (count > 0) {
+      el.textContent = count;
+    } else {
+      clearInterval(tick);
+      transition(STATES.PLAYING);
+    }
+  }, 1000);
+}
+
+// ---- GAME START ----
+
+function generateWords() {
+  const bank = WORD_BANK[game.difficulty];
+  const config = DIFFICULTIES[game.difficulty];
+  const words = [];
+  for (let i = 0; i < config.wordCount; i++) {
+    words.push(bank[Math.floor(Math.random() * bank.length)]);
+  }
+  return words;
+}
+
+function startGame() {
+  const config = DIFFICULTIES[game.difficulty];
+
+  game.words = generateWords();
+  game.currentWordIndex = 0;
+  game.currentInput = "";
+  game.correctWords = 0;
+  game.incorrectChars = 0;
+  game.totalTyped = 0;
+  game.correctChars = 0;
+  game.startTime = performance.now();
+  game.timeLimit = config.time;
+  game.timeRemaining = config.time;
+  game.streak = 0;
+  game.bestStreak = 0;
+
+  renderWordDisplay();
+
+  const input = document.getElementById("type-input");
+  input.value = "";
+  input.disabled = false;
+  input.focus();
+
+  // Start the rAF game loop
+  if (game.rafId) cancelAnimationFrame(game.rafId);
+  gameLoop(performance.now());
+}
+
+// ---- GAME LOOP using requestAnimationFrame ----
+// rAF gives us a timestamp with sub-millisecond precision.
+// We calculate elapsed time from the precise startTime.
+
+function gameLoop(timestamp) {
+  if (game.state !== STATES.PLAYING) return;
+
+  const elapsed = (timestamp - game.startTime) / 1000;
+  game.timeRemaining = Math.max(0, game.timeLimit - elapsed);
+
+  // Update timer display
+  document.getElementById("live-time").textContent = Math.ceil(game.timeRemaining);
+
+  // Update progress bar (countdown from 100% to 0%)
+  const pct = (game.timeRemaining / game.timeLimit) * 100;
+  const bar = document.getElementById("progress-bar");
+  bar.style.width = pct + "%";
+  bar.classList.toggle("warning", pct < 20);
+
+  // Update live WPM (standard: 5 chars = 1 word)
+  const minutesElapsed = elapsed / 60;
+  if (minutesElapsed > 0) {
+    const wpm = Math.round((game.correctChars / 5) / minutesElapsed);
+    document.getElementById("live-wpm").textContent = wpm;
+  }
+
+  // Check if time is up
+  if (game.timeRemaining <= 0) {
+    endGame();
+    return;
+  }
+
+  // Schedule next frame
+  game.rafId = requestAnimationFrame(gameLoop);
+}
+
+// ---- WORD DISPLAY ----
+
+function renderWordDisplay() {
+  const display = document.getElementById("word-display");
+  display.innerHTML = "";
+
+  game.words.forEach((word, wordIdx) => {
+    if (wordIdx > game.currentWordIndex + 30) return; // Only render ahead 30 words
+
+    const wordSpan = document.createElement("span");
+    wordSpan.style.cssText = "display:inline-flex;margin-right:8px;";
+
+    if (wordIdx < game.currentWordIndex) {
+      // Already typed words
+      word.split("").forEach(char => {
+        const s = document.createElement("span");
+        s.className = "char correct";
+        s.textContent = char;
+        wordSpan.appendChild(s);
+      });
+    } else if (wordIdx === game.currentWordIndex) {
+      // Current word being typed
+      word.split("").forEach((char, charIdx) => {
+        const s = document.createElement("span");
+        const typed = game.currentInput[charIdx];
+
+        if (typed === undefined) {
+          s.className = `char ${charIdx === game.currentInput.length ? "current" : "pending"}`;
+        } else if (typed === char) {
+          s.className = "char correct";
+        } else {
+          s.className = "char wrong";
+        }
+
+        s.textContent = char;
+        wordSpan.appendChild(s);
+      });
+    } else {
+      // Future words
+      word.split("").forEach(char => {
+        const s = document.createElement("span");
+        s.className = "char pending";
+        s.textContent = char;
+        wordSpan.appendChild(s);
+      });
+    }
+
+    display.appendChild(wordSpan);
+  });
+
+  // Scroll current word into view
+  const currentWordEl = display.children[Math.min(game.currentWordIndex, display.children.length - 1)];
+  if (currentWordEl) {
+    currentWordEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+// ---- TYPING INPUT ----
+
+document.getElementById("type-input").addEventListener("input", (e) => {
+  if (game.state !== STATES.PLAYING) return;
+
+  const value = e.target.value;
+  game.currentInput = value;
+
+  // Word submitted (space or Enter)
+  if (value.endsWith(" ") || (value.endsWith("\n"))) {
+    const typed = value.trim();
+    const expected = game.words[game.currentWordIndex];
+    submitWord(typed, expected);
+    e.target.value = "";
+    game.currentInput = "";
+    return;
+  }
+
+  // Check for errors in current input
+  const expected = game.words[game.currentWordIndex] || "";
+  let hasError = false;
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== expected[i]) { hasError = true; break; }
+  }
+
+  const input = document.getElementById("type-input");
+  input.classList.toggle("error",   hasError);
+  input.classList.toggle("correct", !hasError && value.length === expected.length);
+
+  game.totalTyped++;
+  renderWordDisplay();
+});
+
+function submitWord(typed, expected) {
+  const isCorrect = typed === expected;
+
+  if (isCorrect) {
+    game.correctWords++;
+    game.correctChars += expected.length + 1; // +1 for the space
+    game.streak++;
+    game.bestStreak = Math.max(game.bestStreak, game.streak);
+  } else {
+    game.incorrectChars++;
+    game.streak = 0;
+  }
+
+  game.currentWordIndex++;
+
+  // Update streak display
+  const streakEl = document.getElementById("streak-display");
+  if (game.streak >= 3) {
+    streakEl.innerHTML = `<span class="streak-fire">🔥 ${game.streak} word streak!</span>`;
+  } else if (!isCorrect) {
+    streakEl.innerHTML = `<span style="color:#e74c3c">✗ ${typed} ≠ ${expected}</span>`;
+  } else {
+    streakEl.textContent = "";
+  }
+
+  // Update live stats
+  document.getElementById("live-streak").textContent = game.streak;
+  const totalAttempted = game.correctWords + game.incorrectChars;
+  if (totalAttempted > 0) {
+    const acc = Math.round(game.correctWords / totalAttempted * 100);
+    document.getElementById("live-accuracy").textContent = acc + "%";
+  }
+
+  // All words typed
+  if (game.currentWordIndex >= game.words.length) {
+    endGame();
+    return;
+  }
+
+  renderWordDisplay();
+
+  // Update input border
+  const input = document.getElementById("type-input");
+  input.classList.remove("error", "correct");
+}
+
+// ---- END GAME ----
+
+function endGame() {
+  cancelAnimationFrame(game.rafId);
+  game.rafId = null;
+
+  const input = document.getElementById("type-input");
+  input.disabled = true;
+
+  const elapsed = (performance.now() - game.startTime) / 1000 / 60;
+  const wpm = Math.round((game.correctChars / 5) / Math.max(elapsed, 0.01));
+  const totalAttempted = game.correctWords + game.incorrectChars;
+  const accuracy = totalAttempted > 0 ? Math.round(game.correctWords / totalAttempted * 100) : 0;
+
+  const result = {
+    wpm,
+    accuracy,
+    correctWords: game.correctWords,
+    correctChars: game.correctChars,
+    bestStreak: game.bestStreak,
+    difficulty: game.difficulty,
+  };
+
+  saveScore(result);
+  transition(STATES.RESULT, result);
+}
+
+// ---- RESULT SCREEN ----
+
+function getGrade(wpm) {
+  if (wpm >= 120) return "🏆 Legendary";
+  if (wpm >= 80)  return "🥇 Expert";
+  if (wpm >= 60)  return "🥈 Advanced";
+  if (wpm >= 40)  return "🥉 Intermediate";
+  if (wpm >= 20)  return "📈 Beginner";
+  return "🐢 Keep practicing!";
+}
+
+function showResult(result) {
+  document.getElementById("result-wpm").textContent = result.wpm;
+  document.getElementById("result-grade").textContent = getGrade(result.wpm);
+  document.getElementById("res-accuracy").textContent = result.accuracy + "%";
+  document.getElementById("res-words").textContent = result.correctWords;
+  document.getElementById("res-chars").textContent = result.correctChars;
+  document.getElementById("res-streak").textContent = result.bestStreak;
+
+  // Check if new high score
+  const scores = getScores();
+  const isHighScore = scores.length === 1 || result.wpm >= Math.max(...scores.slice(1).map(s => s.wpm));
+  document.getElementById("high-score-notice").textContent =
+    isHighScore ? "🌟 New high score!" : "";
+
+  renderScoreBoard();
+}
+
+// ---- HIGH SCORE (localStorage) ----
+
+function getScores() {
+  try {
+    return JSON.parse(localStorage.getItem("kb-warrior-scores") || "[]");
+  } catch { return []; }
+}
+
+function saveScore(result) {
+  const scores = getScores();
+  scores.unshift({
+    wpm: result.wpm,
+    accuracy: result.accuracy,
+    difficulty: result.difficulty,
+    date: new Date().toLocaleDateString(),
+  });
+  const top10 = scores
+    .sort((a, b) => b.wpm - a.wpm)
+    .slice(0, 10);
+  localStorage.setItem("kb-warrior-scores", JSON.stringify(top10));
+}
+
+function renderScoreBoard() {
+  const scores = getScores();
+  const list = document.getElementById("score-list");
+
+  if (scores.length === 0) {
+    list.innerHTML = '<div style="color:#444;font-size:0.8rem">No scores yet. Play a round!</div>';
+    return;
+  }
+
+  list.innerHTML = scores.map((score, i) => `
+    <div class="score-row">
+      <span class="score-rank">${i + 1}</span>
+      <span class="score-wpm">${score.wpm} WPM</span>
+      <span class="score-acc">${score.accuracy}%</span>
+      <span class="score-diff">${score.difficulty}</span>
+      <span class="score-date">${score.date}</span>
+    </div>
+  `).join("");
+}
+
+// ---- UI CONTROLS ----
+
+function resetLiveStats() {
+  document.getElementById("live-wpm").textContent = "--";
+  document.getElementById("live-accuracy").textContent = "--%";
+  document.getElementById("live-streak").textContent = "0";
+  document.getElementById("live-time").textContent = DIFFICULTIES[game.difficulty].time;
+  document.getElementById("progress-bar").style.width = "100%";
+  document.getElementById("progress-bar").classList.remove("warning");
+}
+
+// Difficulty selection
+document.querySelectorAll(".diff-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    game.difficulty = btn.dataset.diff;
+    document.getElementById("live-time").textContent = DIFFICULTIES[game.difficulty].time;
+  });
+});
+
+document.getElementById("btn-start").addEventListener("click", () => {
+  transition(STATES.COUNTDOWN);
+});
+
+document.getElementById("btn-retry").addEventListener("click", () => {
+  transition(STATES.COUNTDOWN);
+});
+
+document.getElementById("btn-change").addEventListener("click", () => {
+  transition(STATES.IDLE);
+});
+
+// Allow Enter to submit word
+document.getElementById("type-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const typed = e.target.value.trim();
+    if (typed) {
+      const expected = game.words[game.currentWordIndex];
+      submitWord(typed, expected);
+      e.target.value = "";
+      game.currentInput = "";
+    }
+  }
+});
+
+// ---- INITIALIZE ----
+render(STATES.IDLE);
+renderScoreBoard();
+
+// ============================================
+// CHECKPOINT: Stop! Answer these before continuing
+// ============================================
+// 1. What is a State Machine? What makes it better than a pile of booleans?
+//    Answer: A state machine is ALWAYS in exactly ONE of a finite set of states.
+//    With booleans you can have impossible combinations: isLoading=true AND
+//    isComplete=true simultaneously. State machine makes that impossible —
+//    you can't be PLAYING and RESULT at the same time.
+//
+// 2. Why use requestAnimationFrame instead of setInterval for the game timer?
+//    Answer: setInterval(fn, 16) tries to run every 16ms but drifts over time
+//    due to main thread work. rAF runs exactly once per screen refresh (60fps),
+//    pauses when the tab is hidden, and provides a high-precision DOMHighResTimeStamp.
+//    The timer calculates elapsed = now - startTime, so it's drift-free.
+//
+// 3. How does WPM get calculated? What is the "standard word"?
+//    Answer: Standard WPM treats 5 characters as 1 "word".
+//    Formula: (totalCorrectChars / 5) / minutesElapsed
+//    This normalizes for different word lengths — "cat" and "extraterrestrial"
+//    both count proportionally, not as each being "1 word".
+//
+// 4. Why render characters individually as <span>s instead of the whole word?
+//    Answer: Per-character feedback (correct/wrong/current highlight) requires
+//    independent styling. If we used a single element with background gradient,
+//    we'd need to recalculate the entire gradient on every keypress.
+//    Per-char spans let us toggle CSS classes on individual characters instantly.
+// ============================================
+</script>
+
+<!--
+  ============================================
+  YOUR TURN: Add Difficulty Levels + High Score Board
+  ============================================
+  The core game is built. Extend it:
+
+  FEATURE 1 — Punctuation mode:
+    Add a toggle "Add punctuation" that appends random punctuation to ~20% of words:
+    commas, periods, exclamation marks, question marks.
+    "hello," must be typed exactly as "hello," to count as correct.
+    Update the word bank generator to inject punctuation.
+
+  FEATURE 2 — Custom time challenge:
+    Add a custom time input (10–120 seconds, step 5).
+    Add a "Word count mode": instead of timed, play until N words are typed,
+    then show total time instead of WPM. (Still show WPM equivalent.)
+
+  FEATURE 3 — Multiplayer (local):
+    Two player mode — two inputs side by side, same word list.
+    Each player types in their own input.
+    First player to type all words wins.
+    Show a race progress bar for each player.
+
+  FEATURE 4 — Detailed analytics:
+    Track per-word timing: how long each word took to type.
+    Build a histogram: show bar chart of word speed distribution.
+    Highlight which words took the longest (trouble words).
+    Show "personal best per difficulty" from localStorage history.
+
+  BOSS: Online leaderboard (simulated)
+    Simulate an API call to "submit score":
+    async function submitScore(score) → POST to JSONPlaceholder or a mock
+    Show a "global leaderboard" by combining localStorage scores
+    with a set of pre-seeded "other players" scores loaded on init.
+    Animate new score entering the leaderboard at its rank position.
+  ============================================
+
+  ============================================
+  PATTERN LEARNED: State Machine + Event Loop
+  ============================================
+  PATTERN NAME: Finite State Machine (FSM)
+  WHEN YOU SEE: A UI with multiple mutually exclusive modes/phases,
+               or when multiple boolean flags are becoming hard to track
+  USE THIS:
+    const STATES = { IDLE, LOADING, PLAYING, ERROR, RESULT }
+    let currentState = STATES.IDLE
+
+    function transition(newState) {
+      if (!validTransitions[currentState].includes(newState)) return
+      currentState = newState
+      render(newState)
+    }
+
+  WHAT IT PREVENTS:
+    - Impossible states (isLoading && isSuccess both true)
+    - Missing state cleanup (forgot to hide the spinner)
+    - Spaghetti conditionals (if loading && !error && !done && ...)
+
+  EVENT LOOP PATTERNS:
+    rAF loop:   requestAnimationFrame(gameLoop) — 60fps, drift-free, pauses on hide
+    Timeout:    setTimeout(fn, ms) — one-shot delay
+    Interval:   setInterval(fn, ms) — repeat (prefer rAF for visual things)
+    Microtask:  Promise.resolve().then(fn) — runs before next task (use sparingly)
+
+  REACT CONNECTION:
+    useReducer is the React state machine pattern:
+    dispatch({ type: "START_GAME" }) → reducer returns new state
+    React guarantees state transitions are atomic (no partial states)
+    XState library: production-grade state machines for React apps
+  ============================================
+-->
+
+</body>
+</html>

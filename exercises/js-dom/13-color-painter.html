@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>13 — Color Painter: Event Delegation + Observer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    h1 { font-size: 1.2rem; color: #888; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: #555; margin-bottom: 20px; }
+
+    /* ---- Toolbar ---- */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 12px;
+      border-right: 1px solid #2a2a2a;
+    }
+
+    .tool-group:last-child { border-right: none; }
+
+    .tool-label {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    button {
+      padding: 6px 14px;
+      border: 1px solid #333;
+      background: #222;
+      color: #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.15s;
+    }
+
+    button:hover { background: #2a2a2a; border-color: #444; }
+
+    button.active {
+      background: #3a5fcd;
+      border-color: #4a6fdd;
+      color: #fff;
+    }
+
+    input[type="color"] {
+      width: 36px;
+      height: 30px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      cursor: pointer;
+      background: none;
+      padding: 2px;
+    }
+
+    input[type="range"] {
+      width: 80px;
+      accent-color: #3a5fcd;
+    }
+
+    /* ---- Grid ---- */
+    #canvas-container {
+      position: relative;
+      display: inline-block;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: crosshair;
+      user-select: none;
+    }
+
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(20, 1fr);
+      gap: 1px;
+      background: #1a1a1a; /* Gap color */
+      padding: 1px;
+    }
+
+    .cell {
+      width: 28px;
+      height: 28px;
+      background: #111;
+      transition: background 0.05s;
+    }
+
+    /* ---- Stats bar ---- */
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .stat-value { color: #aaa; font-weight: 600; }
+
+    /* ---- Color palette swatches ---- */
+    .swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+
+    .swatch:hover { transform: scale(1.2); }
+    .swatch.selected { border-color: #fff; }
+
+    /* ---- Export preview ---- */
+    #export-section {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      display: none;
+    }
+
+    #export-section.visible { display: block; }
+
+    #export-preview {
+      margin-top: 8px;
+      font-family: monospace;
+      font-size: 0.7rem;
+      color: #7ec8e3;
+      white-space: pre;
+      max-height: 120px;
+      overflow-y: auto;
+      background: #111;
+      padding: 8px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<!--
+  ============================================
+  INTRO: Event Delegation + Observer Pattern and WHY they matter
+  ============================================
+  Event Delegation: instead of attaching a listener to each of 100 cells,
+  attach ONE listener to the parent. When a click happens on any cell,
+  the event BUBBLES UP to the parent. The parent checks event.target to
+  see which cell was actually clicked.
+
+  Why it matters:
+    - 100 cells × 1 listener each = 100 listeners in memory
+    - 1 parent listener = 1 listener, works for dynamically added cells too
+    - This is how virtual lists, data tables, and chat apps work at scale
+
+  Observer Pattern: An object (the "subject") maintains a list of "observers"
+  and notifies them when its state changes. Here: the canvas state notifies
+  the stats bar, undo history, and export preview whenever a cell changes.
+
+  DOM connections:
+    - document.createElement → creates elements programmatically
+    - element.addEventListener (one on the grid, not 100 on cells)
+    - event.target → which element was actually interacted with
+    - MutationObserver → watch DOM changes (stats update automatically)
+  ============================================
+
+  ============================================
+  MENTAL MODEL: How to think about it
+  ============================================
+  Event Delegation is like a manager watching a team.
+  Instead of standing next to each employee, the manager stands at the
+  department entrance. When anything happens, the event travels to the
+  entrance (bubbles up), and the manager checks: "who did that?" (event.target).
+
+  Observer is like a newspaper subscription. The canvas is the publisher.
+  Stats bar, history, and export are subscribers. When the canvas changes,
+  ALL subscribers are notified automatically — no manual calls needed.
+  ============================================
+-->
+
+<h1>Exercise 13 — Color Painter</h1>
+<p class="subtitle">PATTERN: Event Delegation + Observer | Click, drag to paint</p>
+
+<div class="toolbar">
+  <!-- Tool selection -->
+  <div class="tool-group">
+    <span class="tool-label">Tool</span>
+    <button id="btn-paint"  class="active" title="Paint (P)">🖌 Paint</button>
+    <button id="btn-erase"  title="Erase (E)">🗑 Erase</button>
+    <button id="btn-fill"   title="Fill All (F)">🪣 Fill</button>
+    <button id="btn-picker" title="Pick color (I)">💉 Pick</button>
+  </div>
+
+  <!-- Color picker -->
+  <div class="tool-group">
+    <span class="tool-label">Color</span>
+    <input type="color" id="color-picker" value="#4a9eff" />
+  </div>
+
+  <!-- Palette -->
+  <div class="tool-group" id="palette">
+    <span class="tool-label">Palette</span>
+  </div>
+
+  <!-- Grid size -->
+  <div class="tool-group">
+    <span class="tool-label">Size</span>
+    <input type="range" id="grid-size" min="5" max="30" value="20" />
+    <span id="size-label">20×20</span>
+  </div>
+
+  <!-- Actions -->
+  <div class="tool-group">
+    <span class="tool-label">Actions</span>
+    <button id="btn-undo"      title="Undo (Ctrl+Z)">↩ Undo</button>
+    <button id="btn-redo"      title="Redo (Ctrl+Y)">↪ Redo</button>
+    <button id="btn-random"    title="Random fill">🎲 Random</button>
+    <button id="btn-clear"     title="Clear all">✕ Clear</button>
+    <button id="btn-export"    title="Export">📋 Export</button>
+  </div>
+</div>
+
+<div id="canvas-container">
+  <div id="grid"></div>
+</div>
+
+<div class="stats-bar">
+  <span>Cells painted: <span class="stat-value" id="stat-painted">0</span></span>
+  <span>Coverage: <span class="stat-value" id="stat-coverage">0%</span></span>
+  <span>Colors used: <span class="stat-value" id="stat-colors">0</span></span>
+  <span>Strokes: <span class="stat-value" id="stat-strokes">0</span></span>
+  <span>Undo depth: <span class="stat-value" id="stat-undo">0</span></span>
+</div>
+
+<div id="export-section">
+  <strong style="font-size:0.8rem;color:#aaa;">Export — CSS pixel art data:</strong>
+  <div id="export-preview"></div>
+</div>
+
+<script>
+// ============================================
+// GUIDED CODE: Read and understand every section
+// ============================================
+
+// ---- STATE: Single source of truth ----
+const state = {
+  gridSize: 20,
+  currentTool: "paint",
+  currentColor: "#4a9eff",
+  cells: [],           // Array of color strings, index = row*cols + col
+  isPainting: false,   // Mouse is held down
+  strokeCount: 0,
+  history: [],         // For undo — array of state.cells snapshots
+  redoStack: [],       // For redo
+  observers: [],       // Observer pattern: list of subscriber functions
+};
+
+// ---- OBSERVER PATTERN: Subscribe/notify ----
+
+// Register a function to be called whenever state changes
+function subscribe(observerFn) {
+  state.observers.push(observerFn);
+}
+
+// Notify all subscribers (call every registered function)
+function notify(changeType, data = {}) {
+  state.observers.forEach(fn => fn(changeType, data));
+}
+
+// ---- GRID INITIALIZATION ----
+
+const gridEl = document.getElementById("grid");
+
+function buildGrid(size) {
+  state.gridSize = size;
+  const total = size * size;
+
+  // Initialize cells array with empty/null (unpainted)
+  state.cells = Array(total).fill(null);
+
+  // Build grid DOM
+  gridEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+  gridEl.innerHTML = "";
+
+  for (let i = 0; i < total; i++) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.dataset.index = i;   // ← KEY: store index on the element for delegation
+    gridEl.appendChild(cell);
+  }
+
+  // Adjust cell size based on grid size
+  const cellPx = Math.max(12, Math.floor(560 / size));
+  document.querySelectorAll(".cell").forEach(c => {
+    c.style.width = cellPx + "px";
+    c.style.height = cellPx + "px";
+  });
+
+  notify("grid-rebuilt", { size });
+}
+
+// ---- EVENT DELEGATION: One listener on the grid ----
+// When a click happens ANYWHERE in the grid, it bubbles up here.
+// We check event.target.dataset.index to know WHICH cell was clicked.
+
+gridEl.addEventListener("mousedown", (e) => {
+  const cell = e.target.closest(".cell");
+  if (!cell) return;
+
+  state.isPainting = true;
+  saveHistory();  // snapshot before change
+
+  if (state.currentTool === "picker") {
+    // Color picker: sample the color from this cell
+    const existing = state.cells[+cell.dataset.index];
+    if (existing) {
+      state.currentColor = existing;
+      document.getElementById("color-picker").value = existing;
+    }
+    state.currentTool = "paint";
+    updateToolButtons();
+    return;
+  }
+
+  paintCell(cell);
+  state.strokeCount++;
+  notify("stroke", { count: state.strokeCount });
+});
+
+gridEl.addEventListener("mousemove", (e) => {
+  if (!state.isPainting) return;
+  if (state.currentTool === "picker") return;
+
+  const cell = e.target.closest(".cell");
+  if (!cell) return;
+  paintCell(cell);
+});
+
+document.addEventListener("mouseup", () => {
+  state.isPainting = false;
+});
+
+// Prevent drag from selecting text
+gridEl.addEventListener("dragstart", e => e.preventDefault());
+
+// ---- PAINT LOGIC ----
+
+function paintCell(cellEl) {
+  const idx = +cellEl.dataset.index;
+
+  if (state.currentTool === "erase") {
+    state.cells[idx] = null;
+    cellEl.style.background = "#111";
+  } else {
+    state.cells[idx] = state.currentColor;
+    cellEl.style.background = state.currentColor;
+  }
+
+  notify("cell-changed", { index: idx });
+}
+
+function fillAll() {
+  saveHistory();
+  const allCells = gridEl.querySelectorAll(".cell");
+  allCells.forEach((cell, i) => {
+    state.cells[i] = state.currentColor;
+    cell.style.background = state.currentColor;
+  });
+  notify("fill-all");
+}
+
+function clearAll() {
+  saveHistory();
+  const allCells = gridEl.querySelectorAll(".cell");
+  allCells.forEach((cell, i) => {
+    state.cells[i] = null;
+    cell.style.background = "#111";
+  });
+  notify("clear");
+}
+
+function fillRandom() {
+  saveHistory();
+  const palette = COLORS;
+  const allCells = gridEl.querySelectorAll(".cell");
+  allCells.forEach((cell, i) => {
+    const color = palette[Math.floor(Math.random() * palette.length)];
+    state.cells[i] = color;
+    cell.style.background = color;
+  });
+  notify("random-fill");
+}
+
+// ---- UNDO / REDO ----
+
+function saveHistory() {
+  // Save a snapshot of current cells
+  state.history.push([...state.cells]);
+  state.redoStack = [];  // Clear redo when new action is taken
+  if (state.history.length > 50) state.history.shift();  // Limit to 50 steps
+  notify("history-changed");
+}
+
+function undo() {
+  if (state.history.length === 0) return;
+  state.redoStack.push([...state.cells]);
+  const previous = state.history.pop();
+  restoreCells(previous);
+  notify("history-changed");
+}
+
+function redo() {
+  if (state.redoStack.length === 0) return;
+  state.history.push([...state.cells]);
+  const next = state.redoStack.pop();
+  restoreCells(next);
+  notify("history-changed");
+}
+
+function restoreCells(snapshot) {
+  state.cells = [...snapshot];
+  const allCells = gridEl.querySelectorAll(".cell");
+  allCells.forEach((cell, i) => {
+    cell.style.background = state.cells[i] || "#111";
+  });
+  notify("cells-restored");
+}
+
+// ---- TOOLBAR: Tools, color, actions ----
+
+const COLORS = [
+  "#ff6b6b", "#feca57", "#48dbfb", "#ff9ff3",
+  "#54a0ff", "#5f27cd", "#00d2d3", "#ff9f43",
+  "#10ac84", "#ee5a24", "#c8d6e5", "#ffffff",
+];
+
+function buildPalette() {
+  const paletteEl = document.getElementById("palette");
+  COLORS.forEach(color => {
+    const swatch = document.createElement("div");
+    swatch.className = "swatch";
+    swatch.style.background = color;
+    swatch.title = color;
+    swatch.addEventListener("click", () => {
+      state.currentColor = color;
+      document.getElementById("color-picker").value = color;
+      document.querySelectorAll(".swatch").forEach(s => s.classList.remove("selected"));
+      swatch.classList.add("selected");
+    });
+    paletteEl.appendChild(swatch);
+  });
+}
+
+document.getElementById("color-picker").addEventListener("input", (e) => {
+  state.currentColor = e.target.value;
+  document.querySelectorAll(".swatch").forEach(s => s.classList.remove("selected"));
+});
+
+function updateToolButtons() {
+  ["paint", "erase", "fill", "picker"].forEach(t => {
+    document.getElementById(`btn-${t}`).classList.toggle("active", state.currentTool === t);
+  });
+}
+
+document.getElementById("btn-paint").addEventListener("click", () => {
+  state.currentTool = "paint"; updateToolButtons();
+});
+
+document.getElementById("btn-erase").addEventListener("click", () => {
+  state.currentTool = "erase"; updateToolButtons();
+});
+
+document.getElementById("btn-fill").addEventListener("click", () => {
+  fillAll();
+});
+
+document.getElementById("btn-picker").addEventListener("click", () => {
+  state.currentTool = "picker"; updateToolButtons();
+});
+
+document.getElementById("btn-undo").addEventListener("click", undo);
+document.getElementById("btn-redo").addEventListener("click", redo);
+document.getElementById("btn-random").addEventListener("click", fillRandom);
+document.getElementById("btn-clear").addEventListener("click", clearAll);
+
+document.getElementById("btn-export").addEventListener("click", () => {
+  const section = document.getElementById("export-section");
+  section.classList.toggle("visible");
+  if (section.classList.contains("visible")) {
+    exportToCss();
+  }
+});
+
+// Grid size slider
+document.getElementById("grid-size").addEventListener("input", (e) => {
+  const size = +e.target.value;
+  document.getElementById("size-label").textContent = `${size}×${size}`;
+  buildGrid(size);
+});
+
+// Keyboard shortcuts
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "z") { e.preventDefault(); undo(); }
+  if (e.ctrlKey && e.key === "y") { e.preventDefault(); redo(); }
+  if (e.key === "p" || e.key === "P") { state.currentTool = "paint"; updateToolButtons(); }
+  if (e.key === "e" || e.key === "E") { state.currentTool = "erase"; updateToolButtons(); }
+  if (e.key === "f" || e.key === "F") { fillAll(); }
+  if (e.key === "i" || e.key === "I") { state.currentTool = "picker"; updateToolButtons(); }
+});
+
+// ---- EXPORT ----
+
+function exportToCss() {
+  const size = state.gridSize;
+  const painted = state.cells.map((color, i) => {
+    if (!color) return null;
+    const row = Math.floor(i / size);
+    const col = i % size;
+    return `  /* [${row},${col}] */ box-shadow: ${col+1}px ${row+1}px 0 ${color}`;
+  }).filter(Boolean);
+
+  const preview = document.getElementById("export-preview");
+  if (painted.length === 0) {
+    preview.textContent = "/* Paint something first! */";
+    return;
+  }
+  preview.textContent = `/* Pixel art — ${painted.length} pixels */\n.pixel-art {\n  width: 1px;\n  height: 1px;\n${painted.join(",\n")};\n}`;
+}
+
+// ---- OBSERVER SUBSCRIPTIONS: Stats bar ----
+// The stats bar SUBSCRIBES to state changes — it updates automatically
+// whenever notify() is called, without being explicitly called.
+
+subscribe((changeType) => {
+  const painted = state.cells.filter(Boolean).length;
+  const total = state.cells.length;
+  const uniqueColors = new Set(state.cells.filter(Boolean)).size;
+
+  document.getElementById("stat-painted").textContent = painted;
+  document.getElementById("stat-coverage").textContent = Math.round(painted / total * 100) + "%";
+  document.getElementById("stat-colors").textContent = uniqueColors;
+  document.getElementById("stat-strokes").textContent = state.strokeCount;
+  document.getElementById("stat-undo").textContent = state.history.length;
+});
+
+// ---- INITIALIZE ----
+buildPalette();
+buildGrid(20);
+
+// ============================================
+// CHECKPOINT: Stop! Answer these before continuing
+// ============================================
+// 1. Why is event delegation more efficient than adding listeners to each cell?
+//    Answer: We attach ONE listener to the grid parent instead of N listeners
+//    (one per cell). With 400 cells, this is 400x fewer listeners in memory.
+//    Also, newly added cells automatically work — no new listeners needed.
+//
+// 2. How does event.target differ from event.currentTarget?
+//    Answer: event.target is the element that was ACTUALLY clicked (the cell).
+//    event.currentTarget is the element with the listener attached (the grid).
+//    With delegation, currentTarget is always the grid, but target is the cell.
+//
+// 3. What is the Observer pattern? How is it implemented here?
+//    Answer: Publisher-subscriber: state.observers is the subscriber list.
+//    subscribe(fn) adds a function to the list. notify(type) calls all of them.
+//    Stats bar subscribes once at startup — it auto-updates on every state change.
+//
+// 4. Why do we use dataset.index instead of array indexOf to find a cell?
+//    Answer: We store the index directly on the DOM element as a data attribute.
+//    This is O(1) — instant lookup. Finding it with indexOf would be O(n).
+// ============================================
+</script>
+
+<!--
+  ============================================
+  YOUR TURN: Pixel Art Exporter
+  ============================================
+  Extend the color painter with a complete pixel art export system.
+
+  FEATURE 1 — PNG Export:
+    Add "Export PNG" button that:
+    - Creates a hidden <canvas> element
+    - Draws each painted cell as a rectangle (cell color, no gaps)
+    - Uses canvas.toBlob() to create a download
+    - Triggers a download: <a href=blobUrl download="pixel-art.png">
+    HINT: for each cell at index i → row = floor(i/size), col = i%size
+          ctx.fillStyle = color; ctx.fillRect(col*scale, row*scale, scale, scale)
+
+  FEATURE 2 — Copy to Clipboard:
+    Add "Copy CSS" button that copies the box-shadow CSS to clipboard:
+    navigator.clipboard.writeText(cssString)
+    Show a brief "Copied!" toast (auto-hide after 1.5s)
+
+  FEATURE 3 — Save/Load with localStorage:
+    Add "Save" button: save state.cells array as JSON to localStorage
+    Add "Load" button: restore from localStorage and repaint grid
+    Show "Saved at HH:MM:SS" confirmation
+
+  FEATURE 4 — Templates:
+    Add 3 preset pixel art templates (simple 10x10 designs: heart, star, smiley)
+    Each template is just an array of {index, color} objects
+    "Template" dropdown → apply template to current grid
+
+  BOSS: Animated Export
+    Add "Export GIF" that exports multiple frames.
+    Each "frame" is a snapshot (saved by clicking "New Frame" button).
+    After N frames, combine them into a CSS animation or data URL.
+    Display a preview of the animation in the page.
+  ============================================
+-->
+
+</body>
+</html>

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>14 — Infinite Scroll: Intersection Observer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #111;
+      border-bottom: 1px solid #222;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header h1 { font-size: 1rem; color: #888; white-space: nowrap; }
+
+    .search-input {
+      flex: 1;
+      min-width: 180px;
+      padding: 7px 14px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .search-input:focus { border-color: #3a5fcd; }
+
+    .filter-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .filter-btn {
+      padding: 5px 12px;
+      border: 1px solid #2a2a2a;
+      background: #1a1a1a;
+      color: #888;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.15s;
+    }
+
+    .filter-btn.active {
+      background: #3a5fcd20;
+      border-color: #3a5fcd;
+      color: #7aa0f0;
+    }
+
+    .stats-pill {
+      font-size: 0.75rem;
+      color: #555;
+      white-space: nowrap;
+    }
+
+    /* ---- Card grid ---- */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    #card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+      animation: fadeIn 0.3s ease both;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: #3a3a3a;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-image {
+      width: 100%;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--card-from), var(--card-to));
+    }
+
+    .card-body { padding: 14px; }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e0e0e0;
+      margin-bottom: 4px;
+    }
+
+    .card-meta {
+      font-size: 0.75rem;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .tag {
+      padding: 2px 8px;
+      background: #252525;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      color: #888;
+    }
+
+    .card-id {
+      font-size: 0.65rem;
+      color: #333;
+      margin-top: 8px;
+    }
+
+    /* ---- Skeleton loader ---- */
+    .skeleton {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .skeleton-img {
+      width: 100%;
+      height: 140px;
+      background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .skeleton-body { padding: 14px; }
+
+    .skeleton-line {
+      height: 10px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      margin-bottom: 8px;
+    }
+
+    .skeleton-line.short { width: 60%; }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ---- Sentinel + loader ---- */
+    #sentinel {
+      height: 1px;
+      margin-top: 20px;
+    }
+
+    #loader {
+      text-align: center;
+      padding: 24px;
+      color: #555;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    #loader.visible { display: block; }
+
+    .loader-dots::after {
+      content: "...";
+      animation: dots 1s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 100% { content: ""; }
+      25%       { content: "."; }
+      50%       { content: ".."; }
+      75%       { content: "..."; }
+    }
+
+    /* ---- End message ---- */
+    #end-message {
+      text-align: center;
+      padding: 40px 24px;
+      color: #444;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    #end-message.visible { display: block; }
+
+    /* ---- Empty state ---- */
+    #empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: #444;
+      display: none;
+    }
+
+    #empty-state.visible { display: block; }
+    #empty-state .icon { font-size: 2rem; margin-bottom: 12px; }
+
+    /* ---- Back to top ---- */
+    #back-to-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 10px 16px;
+      background: #3a5fcd;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    #back-to-top.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+  </style>
+</head>
+<body>
+
+<!--
+  ============================================
+  INTRO: Intersection Observer and WHY it matters
+  ============================================
+  The Intersection Observer API watches when an element enters or exits
+  the viewport (or another element). It fires a callback when the element
+  crosses a threshold — without any scroll event listeners.
+
+  The OLD way (scroll events):
+    window.addEventListener('scroll', () => {
+      const rect = sentinel.getBoundingClientRect()
+      if (rect.top < window.innerHeight) loadMore()
+    })
+  Problem: fires 60+ times per second. Every scroll causes a getBoundingClientRect
+  call, which forces a layout reflow. Pages become janky and sluggish.
+
+  The NEW way (Intersection Observer):
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) loadMore()
+    })
+    observer.observe(sentinel)
+  The browser natively watches the element on a separate thread.
+  Zero scroll events. Zero layout reflow. Maximum performance.
+
+  WHY it matters: infinite scroll, lazy-loading images, read-time progress
+  bars, auto-play videos, sticky header detection, and analytics tracking
+  all use Intersection Observer in production apps.
+  ============================================
+
+  ============================================
+  MENTAL MODEL: How to think about it
+  ============================================
+  Place a tripwire at the bottom of your content.
+  When the user scrolls past it (trips the wire), your callback fires.
+  The browser handles watching — you just say what to do when it triggers.
+
+  "Sentinel element" = the invisible tripwire at the bottom of the list.
+  When it enters the viewport, load the next page of content.
+  ============================================
+-->
+
+<div class="header">
+  <h1>14 — Infinite Scroll</h1>
+  <input
+    type="text"
+    id="search-input"
+    class="search-input"
+    placeholder="Search cards..."
+    aria-label="Search cards"
+  />
+  <div class="filter-btns" id="filter-btns">
+    <button class="filter-btn active" data-category="all">All</button>
+    <button class="filter-btn" data-category="science">Science</button>
+    <button class="filter-btn" data-category="tech">Tech</button>
+    <button class="filter-btn" data-category="art">Art</button>
+    <button class="filter-btn" data-category="nature">Nature</button>
+  </div>
+  <span class="stats-pill" id="stats-pill">0 items</span>
+</div>
+
+<div class="container">
+  <div id="card-grid" aria-live="polite" aria-label="Card results"></div>
+  <div id="empty-state">
+    <div class="icon">🔍</div>
+    <div>No results found</div>
+  </div>
+  <div id="loader" aria-live="polite">
+    <span class="loader-dots">Loading</span>
+  </div>
+  <div id="sentinel" aria-hidden="true"></div>
+  <div id="end-message">— You've seen everything —</div>
+</div>
+
+<button id="back-to-top" aria-label="Back to top">↑ Top</button>
+
+<script>
+// ============================================
+// GUIDED CODE: Intersection Observer with infinite scroll
+// ============================================
+
+// ---- DATA GENERATION ----
+// In a real app, this would be a fetch() to /api/cards?page=N&category=X
+
+const CATEGORIES = ["science", "tech", "art", "nature"];
+const EMOJIS = {
+  science: ["🔬", "⚗️", "🧬", "🔭", "⚛️", "🧪"],
+  tech:    ["💻", "🤖", "⚡", "📱", "🔧", "🛰️"],
+  art:     ["🎨", "🖼️", "🎭", "✏️", "🎸", "📸"],
+  nature:  ["🌊", "🌲", "🦁", "🌸", "🏔️", "🦋"],
+};
+const GRADIENTS = [
+  ["#1a1a2e", "#16213e"], ["#0d0d1a", "#1a0033"],
+  ["#001a00", "#003300"], ["#1a0a00", "#331500"],
+  ["#00001a", "#00003d"], ["#1a001a", "#330033"],
+];
+
+function generateCard(id) {
+  const category = CATEGORIES[id % CATEGORIES.length];
+  const emojis = EMOJIS[category];
+  const emoji = emojis[id % emojis.length];
+  const gradient = GRADIENTS[id % GRADIENTS.length];
+  return {
+    id,
+    title: `${category.charAt(0).toUpperCase() + category.slice(1)} Card #${id}`,
+    category,
+    emoji,
+    gradient,
+    author: ["Alice", "Bob", "Carol", "Dave", "Eve"][id % 5],
+    date: new Date(Date.now() - id * 86400000).toLocaleDateString(),
+    tags: [category, ["featured", "new", "trending", "popular"][id % 4]],
+  };
+}
+
+// Generate a large dataset (simulates a big backend)
+const ALL_CARDS = Array.from({ length: 200 }, (_, i) => generateCard(i + 1));
+
+// ---- STATE ----
+const state = {
+  page: 0,
+  pageSize: 12,
+  isLoading: false,
+  isDone: false,
+  searchQuery: "",
+  category: "all",
+  loadedCount: 0,
+};
+
+// ---- FILTERING ----
+
+function getFilteredCards() {
+  return ALL_CARDS.filter(card => {
+    const matchesCategory = state.category === "all" || card.category === state.category;
+    const q = state.searchQuery.toLowerCase();
+    const matchesSearch = !q
+      || card.title.toLowerCase().includes(q)
+      || card.tags.some(t => t.includes(q))
+      || card.author.toLowerCase().includes(q);
+    return matchesCategory && matchesSearch;
+  });
+}
+
+// ---- RENDER CARDS ----
+
+function createCardElement(card) {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.style.setProperty("--card-from", card.gradient[0]);
+  el.style.setProperty("--card-to",   card.gradient[1]);
+  el.innerHTML = `
+    <div class="card-image">${card.emoji}</div>
+    <div class="card-body">
+      <div class="card-title">${card.title}</div>
+      <div class="card-meta">by ${card.author} · ${card.date}</div>
+      <div class="card-tags">
+        ${card.tags.map(t => `<span class="tag">${t}</span>`).join("")}
+      </div>
+      <div class="card-id">#${card.id}</div>
+    </div>
+  `;
+  return el;
+}
+
+function createSkeleton() {
+  const el = document.createElement("div");
+  el.className = "skeleton";
+  el.innerHTML = `
+    <div class="skeleton-img"></div>
+    <div class="skeleton-body">
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line short"></div>
+      <div class="skeleton-line short"></div>
+    </div>
+  `;
+  return el;
+}
+
+// ---- LOAD MORE ----
+// Simulates an async API fetch with a realistic delay
+
+async function loadMore() {
+  if (state.isLoading || state.isDone) return;
+
+  const filtered = getFilteredCards();
+  const start = state.page * state.pageSize;
+
+  if (start >= filtered.length) {
+    state.isDone = true;
+    showEndMessage();
+    return;
+  }
+
+  state.isLoading = true;
+  showLoader(true);
+
+  // Show skeletons while loading
+  const skeletons = Array.from({ length: Math.min(state.pageSize, filtered.length - start) },
+    createSkeleton
+  );
+  skeletons.forEach(s => gridEl.appendChild(s));
+
+  // Simulate network delay (500–900ms, like a real API)
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 400));
+
+  // Remove skeletons, add real cards
+  skeletons.forEach(s => s.remove());
+
+  const batch = filtered.slice(start, start + state.pageSize);
+  batch.forEach(card => gridEl.appendChild(createCardElement(card)));
+
+  state.page++;
+  state.loadedCount += batch.length;
+  state.isLoading = false;
+
+  showLoader(false);
+  updateStats();
+
+  // Check if we've loaded everything
+  if (state.page * state.pageSize >= filtered.length) {
+    state.isDone = true;
+    showEndMessage();
+  }
+}
+
+// ---- RESET & SEARCH ----
+
+function reset() {
+  state.page = 0;
+  state.isLoading = false;
+  state.isDone = false;
+  state.loadedCount = 0;
+  gridEl.innerHTML = "";
+  document.getElementById("end-message").classList.remove("visible");
+  document.getElementById("empty-state").classList.remove("visible");
+  updateStats();
+}
+
+// Debounced search — wait 300ms after user stops typing
+let searchTimer;
+document.getElementById("search-input").addEventListener("input", (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    state.searchQuery = e.target.value;
+    reset();
+    const filtered = getFilteredCards();
+    if (filtered.length === 0) {
+      document.getElementById("empty-state").classList.add("visible");
+    } else {
+      loadMore();
+    }
+  }, 300);
+});
+
+// Category filters — event delegation on the filter button container
+document.getElementById("filter-btns").addEventListener("click", (e) => {
+  const btn = e.target.closest(".filter-btn");
+  if (!btn) return;
+
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  state.category = btn.dataset.category;
+  reset();
+  const filtered = getFilteredCards();
+  if (filtered.length === 0) {
+    document.getElementById("empty-state").classList.add("visible");
+  } else {
+    loadMore();
+  }
+});
+
+// ---- UI HELPERS ----
+
+const gridEl = document.getElementById("card-grid");
+
+function showLoader(visible) {
+  document.getElementById("loader").classList.toggle("visible", visible);
+}
+
+function showEndMessage() {
+  showLoader(false);
+  document.getElementById("end-message").classList.add("visible");
+}
+
+function updateStats() {
+  const total = getFilteredCards().length;
+  document.getElementById("stats-pill").textContent =
+    `${state.loadedCount} / ${total} items`;
+}
+
+// ---- INTERSECTION OBSERVER: The core of infinite scroll ----
+// Watch the sentinel element at the bottom of the list.
+// When it enters the viewport → load the next page.
+
+const sentinel = document.getElementById("sentinel");
+
+const scrollObserver = new IntersectionObserver(
+  (entries) => {
+    // entries[0] is the sentinel
+    if (entries[0].isIntersecting) {
+      loadMore();
+    }
+  },
+  {
+    root: null,          // null = viewport
+    rootMargin: "200px", // Trigger 200px BEFORE the sentinel reaches viewport edge
+    threshold: 0,        // Fire as soon as any part of sentinel is visible
+  }
+);
+
+scrollObserver.observe(sentinel);
+
+// ---- SECOND OBSERVER: Back-to-top button visibility ----
+// Appear only when user has scrolled past the header
+
+const headerObserver = new IntersectionObserver(
+  ([entry]) => {
+    document.getElementById("back-to-top").classList.toggle(
+      "visible",
+      !entry.isIntersecting  // Show button when header is OUT of view
+    );
+  },
+  { threshold: 0 }
+);
+
+headerObserver.observe(document.querySelector(".header"));
+
+document.getElementById("back-to-top").addEventListener("click", () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+// ---- INITIALIZE ----
+loadMore();
+
+// ============================================
+// CHECKPOINT: Stop! Answer these before continuing
+// ============================================
+// 1. Why is IntersectionObserver better than listening to the scroll event?
+//    Answer: scroll events fire 60+ times per second during scrolling. Each
+//    call to getBoundingClientRect() forces a synchronous layout reflow.
+//    IntersectionObserver fires only when the threshold is crossed, on a
+//    background thread, with no layout thrashing.
+//
+// 2. What does the rootMargin option do?
+//    Answer: Extends the root boundary virtually. rootMargin: "200px" means
+//    "trigger as if the sentinel is 200px closer to the viewport than it
+//    actually is." This starts loading before the user reaches the bottom,
+//    so content is ready before they scroll there.
+//
+// 3. What is a "sentinel element" and why use it?
+//    Answer: A small invisible element placed at the bottom of the list.
+//    When it enters the viewport, the observer fires. This is cleaner than
+//    tracking the last card element — sentinel position is always predictable.
+//
+// 4. Why debounce the search input instead of filtering on every keystroke?
+//    Answer: If each keystroke triggers a fetch (or expensive filter over
+//    thousands of items), typing "hello" fires 5 operations. Debouncing
+//    waits until typing pauses (300ms), then fires once. 5→1 operations.
+// ============================================
+</script>
+
+<!--
+  ============================================
+  YOUR TURN: Add Filtering + Search to the Infinite List
+  ============================================
+  The basic infinite scroll is built. Extend it:
+
+  FEATURE 1 — Sort controls:
+    Add a sort dropdown: "Newest", "Oldest", "A-Z", "Z-A"
+    Sorting should reset the page and reload from position 0
+    The sort should apply BEFORE pagination (sort the filtered array)
+
+  FEATURE 2 — URL state (history API):
+    When search query, category, or sort changes → update the URL:
+    window.history.pushState({}, "", `?q=react&category=tech&sort=newest`)
+    On page load, read from URL and restore those filters
+    Back button should restore previous filter state
+
+  FEATURE 3 — Virtual scroll for very large lists:
+    When total items > 500, instead of adding all rendered cards to DOM,
+    keep a fixed "window" of visible cards (e.g., 30 at a time).
+    As user scrolls down: add new cards at bottom, remove cards at top.
+    As user scrolls up: add cards at top, remove from bottom.
+    Maintain scroll position by adjusting padding-top on the container.
+    This keeps DOM elements bounded regardless of dataset size.
+
+  FEATURE 4 — Lazy image loading:
+    Add a src to each card's image div (a placeholder URL + unique seed).
+    Don't set the actual src until the card is visible.
+    Use a SECOND IntersectionObserver (separate from scroll observer)
+    to watch each card and set the real src when it intersects.
+    This is how Twitter, Instagram, and Pinterest load images.
+
+  BOSS: Bidirectional infinite scroll
+    Users can scroll UP to load older content too (like a chat feed).
+    Add a second sentinel at the TOP of the list.
+    When scrolling up past it: prepend older items, maintain scroll position.
+    Maintain scroll position: scrollTop += heightOfNewlyAddedItems
+  ============================================
+-->
+
+</body>
+</html>
