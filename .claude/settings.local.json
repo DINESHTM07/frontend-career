@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash([ -f \"$f.tsx\" ])",
+      "Bash([ -f \"$f.ts\" ])"
     ]
   }
 }
