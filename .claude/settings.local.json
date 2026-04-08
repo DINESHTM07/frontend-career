@@ -5,7 +5,10 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "Bash([ -f \"$f.tsx\" ])",
-      "Bash([ -f \"$f.ts\" ])"
+      "Bash([ -f \"$f.ts\" ])",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

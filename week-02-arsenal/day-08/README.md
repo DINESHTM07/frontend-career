@@ -4,9 +4,9 @@
 
 ---
 
-## What Was Built Today
+## What Was Built
 
-Five comprehensive interview-prep files added to `interview-vault/`:
+Five comprehensive interview-prep files in `interview-vault/`:
 
 | File | Content | Questions |
 |---|---|---|
@@ -16,7 +16,7 @@ Five comprehensive interview-prep files added to `interview-vault/`:
 | `04-behavioral-interview.md` | STAR-method behavioral | 20 questions |
 | `05-system-design-frontend.md` | Frontend system design | 10 designs |
 
-**Total: 170 questions + 10 system designs across the full interview spectrum.**
+**Total: 160 questions + 10 system designs across the full interview spectrum.**
 
 ---
 
@@ -73,39 +73,44 @@ Ends with a quick-reference difficulty + frequency table for all 60.
 
 ---
 
-### `04-behavioral-interview.md` — 20 Questions (Personalized)
+### `04-behavioral-interview.md` — 20 Questions (Fully Personalized for Dinesh)
 
-Fully personalized for Dinesh S. Every answer uses the STAR method with real biographical details:
+Every answer uses STAR method, grounded in Dinesh's real biography. No generic answers.
 
-- **ECE background** → systems thinking transferable to frontend
-- **GCE Thanjavur** → concrete origin story
-- **250,000-word fantasy novel** → proof of discipline, shipping, and long-haul commitment
-- **Medical recovery** → resilience narrative; turned constraint into productivity
-- **Self-taught with AI tools** → honest, differentiating, modern learning model
-- **Interview Vault itself** → cited as "going above and beyond" evidence
+**Story pillars woven through every answer:**
 
-| Question | What It Tests |
+| Pillar | How it's used |
 |---|---|
-| Tell me about yourself (2-min script with pacing guide) | First impression + story arc |
-| Why frontend? | Genuine passion vs. opportunism |
-| Why should we hire you? (3-pillar answer) | Confidence + evidence |
-| Biggest challenge | Resilience + growth mindset |
-| Project you're proud of (novel OR dashboard, pick by context) | Craft + technical depth |
-| How do you learn? (3-phase system) | Self-direction + depth |
-| How do you handle failure? (bad architecture → rebuilt) | Accountability + principle extraction |
-| 3-year vision | Ambition + realism |
-| Tell me about your book | Memorability + transferable skills |
-| Why switch from ECE? | Agency + self-knowledge |
-| How do you handle deadlines? (scope first) | Reliability + communication |
-| Team experience (interface contract story) | Collaboration + communication |
-| Biggest weakness (no team experience → what I'm doing about it) | Honest self-awareness |
-| How do you stay updated? (named sources + vault) | Continuous learning |
-| Disagreed with someone (3-layer state management debate) | Evidence-based thinking |
-| What motivates you? | Authentic drivers |
-| Handle stress? (3 tactics) | Resilience + self-management |
-| Above and beyond (cheat sheet → full vault) | Intrinsic motivation |
-| Colleagues say? (with one genuine critique) | Self-awareness |
-| Questions for them? (5 smart questions) | Preparation + intelligence |
+| ECE @ GCE Thanjavur | Systems thinking, signal/state mental models, team project story |
+| 250,000-word fantasy novel | Proof of shipping, long-haul commitment, "above and beyond" evidence |
+| Medical recovery | Resilience under real constraints; turned lost time into a skills sprint |
+| Self-taught with AI tools | Honest, differentiating learning model — AI as accelerator, not shortcut |
+| Career transition ECE → React | Agency and self-knowledge narrative; addition, not rejection |
+
+**All 20 questions covered:**
+
+| Question | Key Story / Angle |
+|---|---|
+| Tell me about yourself (2-min script + pacing guide) | ECE → recovery → novel → React → vault → what I want |
+| Why frontend? | Feedback loop + user impact + creative-technical blend |
+| Why should we hire you? (3-pillar answer) | Depth not syntax + novel = shipping + accelerated learning model |
+| Biggest challenge | Medical recovery → structured study → came out with novel + portfolio |
+| Project you're proud of (2 versions: novel or dashboard) | Craft + technical depth — pick by round type |
+| How do you learn new technologies? (3-phase system) | Map → build real → deepen → vault as stress-test |
+| How do you handle failure? | Bad architecture → diagnosed → rebuilt → extracted principle |
+| Where do you see yourself in 3 years? | Senior decisions + performance depth + mentoring |
+| Tell me about your book | World bible = spec doc; 250K words proves scale management |
+| Why are you switching from ECE? | Systems thinking transfers; chose frontend deliberately |
+| How do you handle deadlines? | Scope first → timebox → communicate trade-offs |
+| Describe a time you worked in a team | Interface contract story; applies directly to typed props + APIs |
+| What's your biggest weakness? | No professional team experience → open source + active remediation |
+| How do you stay updated with tech? | Named sources (Comeau, Dodds, Theo) + newsletters + monthly deep dive |
+| Describe a time you disagreed with someone | 3-layer state debate; research-first, evidence-based resolution |
+| What motivates you? | Shipping + understanding + becoming a different person |
+| How do you handle stress? | Decompose → walk → name the fear (3 tested tactics) |
+| Tell me about a time you went above and beyond | Cheat sheet → full 160-question vault; found 3 knowledge gaps |
+| What would your colleagues say about you? | Thorough + direct + explains well + one genuine critique |
+| Do you have any questions for us? (5 smart questions) | Real-work lifecycle, growth path, tech debt, disagreement culture, why they stayed |
 
 Ends with a **Quick Reference table** — one-line skeleton for all 20 answers.
 
@@ -201,7 +206,7 @@ These come up in nearly every frontend interview:
 ## Stats
 
 ```
-Total questions:         170
+Total questions:         160  (60 JS + 50 React + 30 CSS/HTML + 20 Behavioral)
 Total system designs:    10
 Unique code examples:    ~200+
 Files in vault:          5
@@ -210,4 +215,5 @@ Estimated reading time:  12–15 hours (full depth)
 
 ---
 
-*Interview Vault built during Day 8 of the Frontend Career Sprint.*
+*Interview Vault — Day 8 of the Frontend Career Sprint.*
+*Behavioral file fully personalized for Dinesh S. (ECE, GCE Thanjavur — published author — self-taught React).*
