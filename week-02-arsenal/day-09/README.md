@@ -118,7 +118,31 @@ npm run build # production build → dist/
 | `portfolio/src/utils/animations.js` | Shared Framer Motion variants |
 | `portfolio/README.md` | Full setup + deploy guide (Vercel, Netlify, GitHub Pages) |
 | `portfolio/video-script.md` | 2-minute video introduction script + recording tips |
+| `resume/resume-content.md` | Complete one-page resume content — all sections, ATS checklist |
 
 ---
 
-*Portfolio shipped. Script written. Next: record the video and deploy.*
+### 3. `resume/resume-content.md` — One-Page Resume Content
+
+Complete resume content for Dinesh S, ready to paste into any resume builder or Word/Google Docs template.
+
+**Sections:**
+
+| Section | Content |
+|---|---|
+| **Header** | Name, title, duke02101@gmail.com, LinkedIn, GitHub, portfolio placeholder |
+| **Summary** | 3-line ATS-friendly summary with tailoring tips for startup vs enterprise |
+| **Technical Skills** | 6-category table + flat ATS version for copy-paste |
+| **Projects** | 3 placeholder projects with 3 impact-focused bullets each |
+| **Education** | BE ECE — GCE Thanjavur (2022–2025) · Diploma ECE — KSRIT (2019–2022) |
+| **Publications** | 250,000-word fantasy novel with resume bullet version |
+
+**Also included:**
+- One-page layout guide (line budget per section, font and margin recommendations)
+- ATS checklist (8 items — file format, naming, no tables, keyword matching)
+- Cover letter opener template (copy-paste and adapt per application)
+- Tips for tailoring summary and project bullets per job description
+
+---
+
+*Portfolio shipped. Resume written. Script ready. Next: record the video, deploy to Vercel, build the PDF resume.*
