@@ -6,6 +6,30 @@
 
 ---
 
+## Your 5 Survival Files (Root Directory)
+
+These files live in the root folder alongside this one. Know when to open each.
+
+| File | Open When |
+|------|-----------|
+| `RESCUE-KIT.md` | Motivation crashes, you want to quit, you feel behind |
+| `DEBUG-YOURSELF.md` | Your code doesn't work and you don't know why |
+| `WHAT-RECRUITERS-SEE.md` | Every Sunday — audit your online presence before another week of applying |
+| `CONFIDENCE-TRACKER.md` | Every Sunday — fill in the weekly score table, check milestones |
+| `POWER-NEGOTIATION.md` | The moment you receive an offer — read it BEFORE you respond |
+
+**RESCUE-KIT.md** is a personal letter written for the week when everything feels impossible. Read it all the way through. Then close it and open today's exercise. It works.
+
+**DEBUG-YOURSELF.md** is a 10-step flowchart for when your code breaks and you don't know where to start. Steps 1-4 fix 80% of bugs. Step 10 is the nuclear option (ask Claude directly). Use it before you've been stuck for more than 30 minutes.
+
+**WHAT-RECRUITERS-SEE.md** walks through exactly what a hiring manager looks at when they research you: LinkedIn, GitHub, portfolio, live demos, code, and resume. There's a Sunday audit checklist at the bottom. Run it every week during the job hunt.
+
+**CONFIDENCE-TRACKER.md** has a weekly table for scoring yourself (JS, React, DSA, projects, commits, posts) and a milestone tracker with blank date fields. Fill the table every Sunday. Watch the numbers move upward over 13 weeks.
+
+**POWER-NEGOTIATION.md** has word-for-word scripts for every negotiation scenario: deflecting the salary question, countering an offer, handling "this is our final offer," using a competing offer, and spotting red flags in offer calls. Read it before any offer comes — not during.
+
+---
+
 ## The Folder Map — What Goes Where
 
 ```
